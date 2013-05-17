@@ -3,7 +3,7 @@ requestAnimationFrame = (window.requestAnimationFrame===undefined)?
 function initGame() {
     var canvas_el=document.getElementById('game-canvas');
     //TODO: Make it adaptable
-    canvas_el.width=1000;
+    canvas_el.width=1030;
     canvas_el.height=500;
     var ctxt=canvas_el.getContext('2d');
     //Controls

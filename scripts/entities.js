@@ -1,57 +1,93 @@
+//TODO move this to an appropriate place
+function ImageSection(image, gridSize, gridX, gridY, sizeX, sizeY) {
+    this.image = image;
+    this.tile = gridSize;
+    this.sX = gridX * gridSize;
+    this.sY = gridY * gridSize;
+    this.sW = sizeX * gridSize;
+    this.sH = sizeY * gridSize;
+}
+
 var globalEntityIndex = 0;
 
 var baseObject = function (objDat) {
-        this.pos={
-            x:objDat.x, 
-            y:objDat.y
+        this.pos = {
+            x: objDat.x, 
+            y: objDat.y
         };
-        this.dim={
-            w:objDat.w,
-            h:objDat.h
+        this.dim = {
+            w: objDat.w,
+            h: objDat.h
         };
-        this.entID=globalEntityIndex++;
-        if(objDat.hide) {
-            this.visible=true;
+        this.entID = globalEntityIndex++;
+        if (objDat.hide) {
+            this.visible = true;
         };
-        this.sprite=objDat.sprite;
-        entityManager.registerEntity(this);
-        this._dead=false;
-};
+        if (!objDat.reel) {
+            this.getDrawData = function() {
+                return {
+                    x: this.pos.x - this.dim.w/2,
+                    y: this.pos.y - this.dim.h/2,
+                    w: this.dim.w,
+                    h: this.dim.h,
+                    image: null,
+                };
+            };
+        } else {
+            this.animFrame = 0;
+            this.reelIdx = 0;
+            this.reel = reel;
+            this.getDrawData = function() {
+                this.animFrame+= 1;
+                if (this.animFrame > this.reel[this.reelIdx][1]) {
+                    this.reelIdx = (this.reelIdx + 1) % this.reel.length;
+                    this.animFrame = 0;
+                }
+                var img = this.reel[reelIdx][0];
+                return {
+                    x: this.pos.x - img.w / 2,
+                    y: this.pos.y - img.h / 2,
+                    w: img.w,
+                    h: img.h,
+                    image: img,
 
-baseObject.prototype.getDrawData = function() {
-    return {
-        x:this.pos.x-this.dim.w/2,
-        y:this.pos.y-this.dim.h/2,
-        w:this.dim.w,
-        h:this.dim.h,
-        sprite:this.sprite,
-    };
+                }
+            };
+            this.loadReel = function(reel) {
+                this.animFrame = 0;
+                this.reelIdx = 0;
+                this.reel = reel;
+            };
+        }
+        entityManager.registerEntity(this);
+        this._dead = false;
 };
 
 baseObject.prototype.update = function () {};
 
 baseObject.prototype.updateChain = function () {
-    for(var i = this.__proto__; i.update; i = i.__proto__){
+    var i;
+    for(i = this.__proto__; i.update; i = i.__proto__){
         i.update.call(this);
     }
 };
 
-
+/* A physicalObject is an object with an attached Box2D body */
 var physicalObject = function (physDefn) {
         baseObject.call(this, physDefn);
         //Create a Box2D box!!
-        this.pBody=physicsEngine.makeBody(physDefn, this);
-        this.skipUpdate=(physDefn.isStatic)?true:false;
+        this.pBody = physicsEngine.makeBody(physDefn, this);
+        this.skipUpdate = (physDefn.isStatic)?true:false;
 };
 
 physicalObject.prototype.__proto__ = baseObject.prototype;
 
 physicalObject.prototype.update=function () {
     //Update positions from Box2D
-    if(!this.skipUpdate) {
+    if (!this.skipUpdate) {
         var coord = this.pBody.GetPosition(); 
-        this.pos.x=coord.x*_scale;
-        this.pos.y=coord.y*_scale;
+        this.pos.x = coord.x*_scale;
+        this.pos.y = coord.y*_scale;
     };
 };
 
@@ -60,14 +96,14 @@ physicalObject.prototype.stall = function() {
 }
 
 
-
+/* A mortalObject is basically any object with health */
 var mortalObject = function (mortalDefn) {
     physicalObject.call(this, mortalDefn);
     var health = 100;
     this.hurt = function(amt) {
-        health-=amt;
+        health-= amt;
         if (health<0) {
-            this._dead=true;
+            this._dead = true;
             console.log('destroyed');
         }
     }
@@ -88,6 +124,7 @@ mortalObject.prototype.update = function() {};
 * */
 var playerObject = function (playerDefn) {
         playerDefn.userData = 'player';
+        playerDefn.filterGroup = -1;
         mortalObject.call(this, playerDefn);
         this.moveAcc = playerDefn.acceleration;
         this.pBody.SetLinearDamping(playerDefn.damping);
@@ -119,12 +156,12 @@ playerObject.prototype.update=function () {
         var cPos = vMath.multAdd(this.pos, this.dim.w, fVec);
         var cVel = this.pBody.GetLinearVelocity();
         this.weapon.fire({
-            x:cPos.x,
-            y:cPos.y,
-            dx:fVec.x,
-            dy:fVec.y,
-            sx:cVel.x,
-            sy:cVel.y
+            x: cPos.x,
+            y: cPos.y,
+            dx: fVec.x,
+            dy: fVec.y,
+            sx: cVel.x,
+            sy: cVel.y
         });
     }
 };
@@ -134,8 +171,8 @@ var bulletObject = function (bulletData) {
     physicalObject.call(this, bulletData);
     this.timeout = bulletData.timeout;
     this.pBody.SetLinearVelocity({
-        x:bulletData.dx*bulletData.speed+bulletData.sx, 
-        y:bulletData.dy*bulletData.speed+bulletData.sy
+        x: bulletData.dx*bulletData.speed+bulletData.sx, 
+        y: bulletData.dy*bulletData.speed+bulletData.sy
     });
     this.hitDamage = bulletData.hitDamage;
 };
@@ -144,7 +181,7 @@ bulletObject.prototype.__proto__ = physicalObject.prototype;
 
 bulletObject.prototype.update = function() {
     if (!this.timeout--) {
-        this._dead=true;
+        this._dead = true;
     };
 };
 
@@ -161,6 +198,6 @@ zombieObject.prototype.update = function () {
     if((this.step--)<0) {
         var mVec = levelManager.getConvergenceVector(this.pos);
         this.pBody.SetLinearVelocity(vMath.magnify(vMath.normalize(mVec), this.moveSpeed));
-        this.step=60+Math.random()*300;
+        this.step = 60 + Math.random()*300;
     }
 };

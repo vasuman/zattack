@@ -84,7 +84,6 @@ var physicsEngine = new (function physicsScheme(){
         world.DestroyBody(physBody); 
     };
     this.solveListener = function (className, callback) {
-        console.log(className)
         this.ctCallbacks[className] = callback;
     };
     this.refreshWorld = function () {
