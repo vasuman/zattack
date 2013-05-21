@@ -9,23 +9,12 @@ function initGame() {
     //Controls
     controlEngine.listenForKeyboardEvents(document.getElementById('main-body'));
     //Add all draw shit here
-    drawManager.registerHandle(ctxt);
-    drawManager.frame = {
-        w:canvas_el.width, 
-        h:canvas_el.height
-    };
+    drawManager.initCanvas(ctxt, canvas_el.width, canvas_el.height);
+    drawManager.setCanvasSegmentSize(canvas_el.width/2, canvas_el.height/2);
     //Viewport limits!!
-    drawManager.limits = {
-        minX:-1700,
-        maxX:1700,
-        minY:-1500,
-        maxY:1500,
-    };
+    drawManager.setViewportLimits(-10000, 10240, -10000, 10240)
     sceneManager.init();
-    requestAnimationFrame(update);
+    requestAnimationFrame(sceneManager.update);
 };
 
-function update() {
-    sceneManager.update();
-};
 window.onload=initGame;

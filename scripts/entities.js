@@ -28,8 +28,8 @@ var baseObject = function (objDat) {
                 return {
                     x: this.pos.x - this.dim.w/2,
                     y: this.pos.y - this.dim.h/2,
-                    w: this.dim.w,
-                    h: this.dim.h,
+                    width: this.dim.w,
+                    height: this.dim.h,
                     image: null,
                 };
             };
@@ -47,8 +47,8 @@ var baseObject = function (objDat) {
                 return {
                     x: this.pos.x - img.w / 2,
                     y: this.pos.y - img.h / 2,
-                    w: img.w,
-                    h: img.h,
+                    width: img.w,
+                    height: img.h,
                     image: img,
 
                 }
@@ -101,10 +101,10 @@ var mortalObject = function (mortalDefn) {
     physicalObject.call(this, mortalDefn);
     var health = 100;
     this.hurt = function(amt) {
-        health-= amt;
+        health -= amt;
         if (health<0) {
             this._dead = true;
-            console.log('destroyed');
+            console.log('destroyed', this);
         }
     }
 }
@@ -115,7 +115,7 @@ mortalObject.prototype.update = function() {};
 
 /*
 *   playerObjects are for use in top-view games
-*   moves with same velocity in all directions
+*   moves with same impulse in all directions
 *   Also has support for firing using keyboard.
 *   
 *   Change the keyState keys in the controlEngine
@@ -175,15 +175,15 @@ var bulletObject = function (bulletData) {
         y: bulletData.dy*bulletData.speed+bulletData.sy
     });
     this.hitDamage = bulletData.hitDamage;
-};
+}
 
 bulletObject.prototype.__proto__ = physicalObject.prototype;
 
 bulletObject.prototype.update = function() {
     if (!this.timeout--) {
         this._dead = true;
-    };
-};
+    }
+}
 
 var zombieObject = function (zombieData) {
     zombieData.userData = 'zombie';
@@ -195,7 +195,7 @@ var zombieObject = function (zombieData) {
 zombieObject.prototype.__proto__ = mortalObject.prototype;
 
 zombieObject.prototype.update = function () {
-    if((this.step--)<0) {
+    if ( (this.step--) < 0 ) {
         var mVec = levelManager.getConvergenceVector(this.pos);
         this.pBody.SetLinearVelocity(vMath.magnify(vMath.normalize(mVec), this.moveSpeed));
         this.step = 60 + Math.random()*300;

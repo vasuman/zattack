@@ -11,7 +11,7 @@ var defnBullets = {
             bulletData.h = 5;
             bulletData.speed = 20;
             bulletData.filterGroup = -1;
-            bulletData.hitDamage = 100;
+            bulletData.hitDamage = 10;
             return new bulletObject(bulletData);
     }
 };
@@ -19,7 +19,7 @@ var defnBullets = {
 var defnWeapons = {
     testGun: new abstractWeapon({
         name: 'testGun',
-        cooldown: 10,
+        cooldown: 30,
         bullet: defnBullets.testBullet
     })
 };

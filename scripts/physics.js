@@ -1,8 +1,7 @@
-
 //GLOABL CONSTANTS DEFINED HERE !!!
 var _scale=30;
 var _gravity=0;
-var _fps=60;
+var _fps=120;
 
 // Insert Box2D shorthands here!!
 var Vec2 = Box2D.Common.Math.b2Vec2;
@@ -23,11 +22,9 @@ var physicsEngine = new (function physicsScheme(){
         var udA = bodyA.GetUserData();
         var udB = bodyB.GetUserData();
         if (udA['class'] in physicsEngine.ctCallbacks) {
-            console.log(udA);
             physicsEngine.ctCallbacks[udA['class']](udA, udB, impulse);
         }
         if (udB['class'] in physicsEngine.ctCallbacks) {
-            console.log(udB);
             physicsEngine.ctCallbacks[udB['class']](udB, udA, impulse);
         }
     };
