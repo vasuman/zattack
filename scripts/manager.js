@@ -301,7 +301,6 @@ var levelManager = (function () {
                 selected[i][j] = false;
             }
         }
-        console.log(map)
         for(var i = 0; i < map.width; i+=1) {
             for(var j = 0; j < map.height; j+=1) {
                 if (map.data[j][i]>0 && !selected[j][i]) {
@@ -326,6 +325,7 @@ var levelManager = (function () {
                 }
             }
         }
+        this.grid = new PF.Grid(map.width, map.height, map.data);
     }
     function addObstacle(physDat) {
         obstacles.push(new physicalObject({
@@ -337,7 +337,7 @@ var levelManager = (function () {
         }));
     }
     function initChar() {
-        characters.player = new playerObject({
+        player = new playerObject({
             x:45,
             y:50,
             w:12,
@@ -349,11 +349,12 @@ var levelManager = (function () {
         characters.zombies = [];
         for(var i = 0; i < 10; i+=1) {
             characters.zombies.push(new zombieObject({
-                x: Math.random()*1000,
-                y: Math.random()*1000,
+                x: Math.random()*980+20,
+                y: Math.random()*980+20,
                 w: 12,
                 h: 12,
-                moveSpeed: 2
+                acceleration: 7,
+                damping: 0.7
             }));
         }
     }
@@ -389,13 +390,13 @@ var contactManager = (function () {
                 }
         });
         //Zombie Handler
-        physicsEngine.solveListener('zombie', 
-            function(zom, object, imp) {
-                //Find a better way!!
-                if(object['class'] == 'player') {
-                    object.ent.hurt(10);
-                }
-        });        
+        /* physicsEngine.solveListener('zombie', 
+         *     function(zom, object, imp) {
+         *         //Find a better way!!
+         *         if(object['class'] == 'player') {
+         *             object.ent.hurt(10);
+         *         }
+         * });         */
     }
     return {
         init: init
@@ -419,3 +420,5 @@ var HUDManager = (function () {
         clear: clear
     };
 }());
+
+

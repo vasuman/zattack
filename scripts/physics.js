@@ -37,6 +37,9 @@ var physicsEngine = (function () {
         var bDef = new Box2D.Dynamics.b2BodyDef();
         bDef.type = (physData.isStatic)?Body.b2_staticBody:Body.b2_dynamicBody;
         bDef.position.Set(physData.x/_scale, physData.y/_scale);
+        if (physData.damping) {
+            bDef.linearDamping = physData.damping;
+        }
         var fixDef = new Box2D.Dynamics.b2FixtureDef();
         switch(physData.fixtureType) {
             case 0: fixDef.friction = 0;
@@ -89,24 +92,49 @@ var physicsEngine = (function () {
         world.SetContactListener(ctListen);
         this.ctCallbacks = {};
     };
-    function queryAggregateVector(obj, qClass, lkm) {
+    function queryAggregateVector(obj, qClass, attract, repulse, maxMagn) {
         var objCenter = obj.GetPosition(),
             colAB = new Box2D.Collision.b2AABB,
-            range = vMath.magnify(lkm, 1/_scale);
+            agVec = new Vec2,
+            vVec = new Vec2,
+            sepVec = new Vec2,
+            numA = 0,
+            numV = 0,
+            range = {x:attract/_scale, y:attract/_scale};
         colAB.upperBound = vMath.multAdd(objCenter, 1, range);
         colAB.lowerBound = vMath.multAdd(objCenter, -1, range);
-        console.log(colAB)
         function queryCallback(fixture) {
             var body = fixture.GetBody();
-            while(body) {
-                var userDat  = body.GetUserData();
-                if (userDat['class']) {
-                    console.log(userDat['class']);
+            if (body != obj && body.GetUserData()['class'] == qClass) {
+                var dVec = vMath.multAdd(body.GetPosition(), -1, objCenter),
+                    distance = vMath.magnitude(dVec);
+                if (distance < attract/_scale) {
+                    if( distance < repulse/_scale ) {
+                        sepVec.Add(vMath.magnify(vMath.invert(dVec), -1));
+                        numA+=1;
+                    } else {
+                        agVec.Add(vMath.multAdd(agVec, 1, dVec));
+                    }
+                    vVec.Add(vMath.multAdd(obj.GetLinearVelocity(), -1, body.GetLinearVelocity()));
+                    numV+=1;
                 }
-                body = body.G
             }
+            return true;
         }
         world.QueryAABB(queryCallback, colAB);
+        if(numA) {
+            sepVec.Multiply(1/numA);
+            sepVec = vMath.limit(sepVec, maxMagn);
+        }
+        if (numV) {
+            vVec.Multiply(1/numV);
+            vVec = vMath.limit(vVec, maxMagn);
+        }
+        if (numV != numA) {
+            agVec.Multiply(1/(numV-numA));
+            agVec = vMath.limit(agVec, maxMagn);
+        }
+        return [agVec, vVec, sepVec];
     } 
     return {
         ctCallbacks: {},

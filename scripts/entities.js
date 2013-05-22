@@ -95,6 +95,10 @@ physicalObject.prototype.stall = function() {
     this.pBody.SetLinearVelocity({x:0, y:0});
 }
 
+physicalObject.prototype.push = function (fVec) {
+    this.pBody.ApplyForce(fVec, this.pBody.GetWorldCenter());
+}
+
 
 /* A mortalObject is basically any object with health */
 var mortalObject = function (mortalDefn) {
@@ -127,7 +131,6 @@ var playerObject = function (playerDefn) {
         playerDefn.filterGroup = -1;
         mortalObject.call(this, playerDefn);
         this.moveAcc = playerDefn.acceleration;
-        this.pBody.SetLinearDamping(playerDefn.damping);
         this.weapon = playerDefn.weapon;
 };
 
@@ -144,10 +147,7 @@ playerObject.prototype.update=function () {
     //MOVEMENT
     var mVec = controlEngine.getMovementVector();
     if (mVec.x || mVec.y) {
-        this.pBody.ApplyForce(
-            vMath.magnify(vMath.normalize(mVec), this.moveAcc), 
-            this.pBody.GetWorldCenter()
-        );
+        this.push(vMath.magnify(vMath.normalize(mVec), this.moveAcc));
     }
     
     //FIRING
@@ -188,16 +188,22 @@ bulletObject.prototype.update = function() {
 var zombieObject = function (zombieData) {
     zombieData.userData = 'zombie';
     mortalObject.call(this, zombieData);
-    this.moveSpeed = zombieData.moveSpeed;
-    this.step=60;
+    this.acc = zombieData.acceleration;
 }
 
 zombieObject.prototype.__proto__ = mortalObject.prototype;
 
 zombieObject.prototype.update = function () {
-    if ( (this.step--) < 0 ) {
-        var mVec = levelManager.getConvergenceVector(this.pos);
-        this.pBody.SetLinearVelocity(vMath.magnify(vMath.normalize(mVec), this.moveSpeed));
-        this.step = 60 + Math.random()*300;
-    }
-};
+    //Swarm Manager
+    var aVec = physicsEngine.queryAggregateVector(this.pBody, 'zombie', 300, 60),
+        xomBVec = aVec[0],
+        vVec = aVec[1],
+        sepVec = aVec[2];
+        this.push(xomBVec);
+        this.push(vVec);
+        this.push(sepVec);
+
+    // var mVec = levelManager.getConvergenceVector(this.pos);
+    // this.pBody.SetLinearVelocity(vMath.magnify(vMath.normalize(mVec), this.moveSpeed));
+    // this.step = 60 + Math.random()*300;
+}
