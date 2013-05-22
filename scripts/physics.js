@@ -8,19 +8,18 @@ var Vec2 = Box2D.Common.Math.b2Vec2;
 var Body = Box2D.Dynamics.b2Body;
 var Shapes = Box2D.Collision.Shapes;
 
-var physicsEngine = new (function physicsScheme(){
+var physicsEngine = (function () {
     world = new Box2D.Dynamics.b2World(new Vec2(0, _gravity), false);
-    this.update = function () {
+    function update() {
         world.Step(1/_fps, 10, 10);
         world.ClearForces();
     };
-    this.ctCallbacks = {};
     var ctListen = new Box2D.Dynamics.b2ContactListener();
-    ctListen.PostSolve = function(contact, impulse) {
-        var bodyA = contact.GetFixtureA().GetBody();
-        var bodyB = contact.GetFixtureB().GetBody();
-        var udA = bodyA.GetUserData();
-        var udB = bodyB.GetUserData();
+    ctListen.PostSolve = function (contact, impulse) {
+        var bodyA = contact.GetFixtureA().GetBody(),
+            bodyB = contact.GetFixtureB().GetBody(),
+            udA = bodyA.GetUserData(),
+            udB = bodyB.GetUserData();
         if (udA['class'] in physicsEngine.ctCallbacks) {
             physicsEngine.ctCallbacks[udA['class']](udA, udB, impulse);
         }
@@ -29,7 +28,7 @@ var physicsEngine = new (function physicsScheme(){
         }
     };
     world.SetContactListener(ctListen);
-    this.makeBody = function (physData, refObj) {
+    function makeBody(physData, refObj) {
         /* Fixture Types
          * 1 : Slippy and Bouncy
          * 2 : Bouncy
@@ -77,16 +76,45 @@ var physicsEngine = new (function physicsScheme(){
         }
         return createdBody;
     };
-    this.destroyBody = function(physBody) {
+    function destroyBody(physBody) {
         world.DestroyBody(physBody); 
     };
-    this.solveListener = function (className, callback) {
+    function solveListener(className, callback) {
         this.ctCallbacks[className] = callback;
     };
-    this.refreshWorld = function () {
+    function refreshWorld() {
         //TODO add code
+        // delete world;
         world = new Box2D.Dynamics.b2World(new Vec2(0, _gravity), false);
         world.SetContactListener(ctListen);
         this.ctCallbacks = {};
+    };
+    function queryAggregateVector(obj, qClass, lkm) {
+        var objCenter = obj.GetPosition(),
+            colAB = new Box2D.Collision.b2AABB,
+            range = vMath.magnify(lkm, 1/_scale);
+        colAB.upperBound = vMath.multAdd(objCenter, 1, range);
+        colAB.lowerBound = vMath.multAdd(objCenter, -1, range);
+        console.log(colAB)
+        function queryCallback(fixture) {
+            var body = fixture.GetBody();
+            while(body) {
+                var userDat  = body.GetUserData();
+                if (userDat['class']) {
+                    console.log(userDat['class']);
+                }
+                body = body.G
+            }
+        }
+        world.QueryAABB(queryCallback, colAB);
+    } 
+    return {
+        ctCallbacks: {},
+        solveListener: solveListener,
+        refreshWorld: refreshWorld,
+        destroyBody: destroyBody,
+        update: update,
+        makeBody: makeBody,
+        queryAggregateVector: queryAggregateVector
     };
 })();
