@@ -189,12 +189,16 @@ var zombieObject = function (zombieData) {
     zombieData.userData = 'zombie';
     mortalObject.call(this, zombieData);
     this.acc = zombieData.acceleration;
+    this.path = []
+    this.maxVel = zombieData.maxVel;
 }
 
 zombieObject.prototype.__proto__ = mortalObject.prototype;
 
 zombieObject.prototype.update = function () {
-    //Swarm Manager
+    // Limit velocity
+    this.pBody.SetLinearVelocity(vMath.limit(this.pBody.GetLinearVelocity(), this.maxVel))
+    // Swarm Manager
     var aVec = physicsEngine.queryAggregateVector(this.pBody, 'zombie', 300, 60),
         xomBVec = aVec[0],
         vVec = aVec[1],
@@ -202,8 +206,20 @@ zombieObject.prototype.update = function () {
         this.push(xomBVec);
         this.push(vVec);
         this.push(sepVec);
-
-    // var mVec = levelManager.getConvergenceVector(this.pos);
-    // this.pBody.SetLinearVelocity(vMath.magnify(vMath.normalize(mVec), this.moveSpeed));
-    // this.step = 60 + Math.random()*300;
+ 
+    // Primitive Clustering
+/*     var mVec = levelManager.getConvergenceVector(this.pos);
+ *     this.pBody.SetLinearVelocity(vMath.magnify(vMath.normalize(mVec), this.moveSpeed));
+ *     this.step = 60 + Math.random()*300;
+ *  */
+    // Lookahead
+/*     if (this.path.length == 0) {
+ *         this.path = levelManager.generatePath(this.pos)
+ *     }
+ *     else {
+ *         var dir = this.path.pop(),
+ *             cVec = { x: dir[0], y: dir[1] };
+ *         this.pBody.SetLinearVelocity()
+ * 
+ *     } */
 }

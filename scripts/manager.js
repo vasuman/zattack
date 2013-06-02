@@ -333,7 +333,8 @@ var levelManager = (function () {
             y:physDat[1],
             w:physDat[2],
             h:physDat[3],
-            isStatic: true
+            isStatic: true,
+            fixtureType: 0
         }));
     }
     function initChar() {
@@ -354,7 +355,8 @@ var levelManager = (function () {
                 w: 12,
                 h: 12,
                 acceleration: 7,
-                damping: 0.7
+                fixtureType: 1,
+                maxVel: 12
             }));
         }
     }
@@ -367,6 +369,12 @@ var levelManager = (function () {
         var dPos = characters.player.pos;
         return vMath.multAdd(dPos, -1, position);
     };
+    function getGridCoord(pos) {
+        return {
+            x: Math.floor(pos.x/gridSize),
+            y: Math.floor(pos.y/gridSize)
+        } 
+    }
     return {
         update: update,
         getConvergenceVector: getConvergenceVector,
@@ -389,14 +397,14 @@ var contactManager = (function () {
                     object.ent.stall();
                 }
         });
-        //Zombie Handler
-        /* physicsEngine.solveListener('zombie', 
-         *     function(zom, object, imp) {
-         *         //Find a better way!!
-         *         if(object['class'] == 'player') {
-         *             object.ent.hurt(10);
-         *         }
-         * });         */
+        // Zombie Handler
+        physicsEngine.solveListener('zombie', 
+            function(zom, object, imp) {
+                //Find a better way!!
+                if(object['class'] == 'player') {
+                    object.ent.hurt(10);
+                }
+        });         
     }
     return {
         init: init

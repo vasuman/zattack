@@ -30,10 +30,10 @@ var physicsEngine = (function () {
     world.SetContactListener(ctListen);
     function makeBody(physData, refObj) {
         /* Fixture Types
-         * 1 : Slippy and Bouncy
-         * 2 : Bouncy
-         * 3 : Slippy
-         * 4 : Custom -- also specify "friction" and "restitution"  */
+         * 0 : Slippy and Bouncy
+         * 1 : Bouncy
+         * 2 : Slippy
+         * 3 : Custom -- also specify "friction" and "restitution"  */
         var bDef = new Box2D.Dynamics.b2BodyDef();
         bDef.type = (physData.isStatic)?Body.b2_staticBody:Body.b2_dynamicBody;
         bDef.position.Set(physData.x/_scale, physData.y/_scale);
@@ -92,7 +92,7 @@ var physicsEngine = (function () {
         world.SetContactListener(ctListen);
         this.ctCallbacks = {};
     };
-    function queryAggregateVector(obj, qClass, attract, repulse, maxMagn) {
+    function queryAggregateVector(obj, qClass, attract, repulse, maxMagn, food, predator) {
         var objCenter = obj.GetPosition(),
             colAB = new Box2D.Collision.b2AABB,
             agVec = new Vec2,
@@ -115,7 +115,7 @@ var physicsEngine = (function () {
                     } else {
                         agVec.Add(vMath.multAdd(agVec, 1, dVec));
                     }
-                    vVec.Add(vMath.multAdd(obj.GetLinearVelocity(), -1, body.GetLinearVelocity()));
+                    vVec.Add(vMath.multAdd(body.GetLinearVelocity(), -1, obj.GetLinearVelocity()));
                     numV+=1;
                 }
             }
