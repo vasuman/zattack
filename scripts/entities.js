@@ -199,14 +199,13 @@ zombieObject.prototype.update = function () {
     // Limit velocity
     this.pBody.SetLinearVelocity(vMath.limit(this.pBody.GetLinearVelocity(), this.maxVel))
     // Swarm Manager
-    var aVec = physicsEngine.queryAggregateVector(this.pBody, 'zombie', 300, 60),
-        xomBVec = aVec[0],
-        vVec = aVec[1],
-        sepVec = aVec[2];
-        this.push(xomBVec);
-        this.push(vVec);
-        this.push(sepVec);
- 
+    var aVec = physicsEngine.queryAggregateVector(this.pBody, 'zombie', 300, 60, 20, 'player', 'wall');
+    if (Math.random()*3000 < 10) {
+        this.push(vMath.magnify(aVec[3], 6));
+    }
+    for(var i = 0; i < aVec.length; i++) {
+        this.push(aVec[i]); 
+    }
     // Primitive Clustering
 /*     var mVec = levelManager.getConvergenceVector(this.pos);
  *     this.pBody.SetLinearVelocity(vMath.magnify(vMath.normalize(mVec), this.moveSpeed));

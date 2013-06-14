@@ -19,7 +19,7 @@ var defnBullets = {
 var defnWeapons = {
     testGun: new abstractWeapon({
         name: 'testGun',
-        cooldown: 30,
+        cooldown: 5,
         bullet: defnBullets.testBullet
     })
 };
@@ -77,6 +77,13 @@ var vMath = {
     limit: function(va, value) {
         var m = this.magnitude(va);
         if(m > value) {
+            return this.magnify(va, value/m);
+        }
+        return va;
+    },
+    assure: function(va, value) {
+        var m = this.magnitude(va);
+        if (m < value) {
             return this.magnify(va, value/m);
         }
         return va;

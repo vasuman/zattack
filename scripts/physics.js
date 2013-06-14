@@ -98,26 +98,39 @@ var physicsEngine = (function () {
             agVec = new Vec2,
             vVec = new Vec2,
             sepVec = new Vec2,
+            fVec = new Vec2,
+            pVec = new Vec2,
             numA = 0,
             numV = 0,
+            numF = 0,
+            numP = 0,
             range = {x:attract/_scale, y:attract/_scale};
         colAB.upperBound = vMath.multAdd(objCenter, 1, range);
         colAB.lowerBound = vMath.multAdd(objCenter, -1, range);
         function queryCallback(fixture) {
-            var body = fixture.GetBody();
-            if (body != obj && body.GetUserData()['class'] == qClass) {
-                var dVec = vMath.multAdd(body.GetPosition(), -1, objCenter),
-                    distance = vMath.magnitude(dVec);
+            var body = fixture.GetBody(),
+                oClass = body.GetUserData()['class'],
+                dVec = vMath.multAdd(body.GetPosition(), -1, objCenter),
+                distance = vMath.magnitude(dVec);
+            if (body != obj && oClass == qClass) {
                 if (distance < attract/_scale) {
                     if( distance < repulse/_scale ) {
                         sepVec.Add(vMath.magnify(vMath.invert(dVec), -1));
                         numA+=1;
                     } else {
-                        agVec.Add(vMath.multAdd(agVec, 1, dVec));
+                        agVec.Add(dVec);
                     }
                     vVec.Add(vMath.multAdd(body.GetLinearVelocity(), -1, obj.GetLinearVelocity()));
                     numV+=1;
                 }
+            }
+            else if (distance < attract/_scale && oClass == food) {
+                    fVec.Add(dVec);
+                    numF+=1;
+            }
+            else if (distance < repulse/_scale && oClass == predator) {
+                    pVec.Add(vMath.magnify(vMath.invert(dVec), -1));
+                    numP+=1;
             }
             return true;
         }
@@ -125,6 +138,16 @@ var physicsEngine = (function () {
         if(numA) {
             sepVec.Multiply(1/numA);
             sepVec = vMath.limit(sepVec, maxMagn);
+        }
+        if (numF) {
+            fVec.Multiply(1/numF);
+            fVec = vMath.limit(fVec, maxMagn);
+            fVec.Multiply(3);
+            fVec = vMath.assure(fVec, maxMagn/2);
+        }
+        if (numP) {
+            pVec.Multiply(1/numP);
+            pVec = vMath.limit(pVec, maxMagn);
         }
         if (numV) {
             vVec.Multiply(1/numV);
@@ -134,7 +157,7 @@ var physicsEngine = (function () {
             agVec.Multiply(1/(numV-numA));
             agVec = vMath.limit(agVec, maxMagn);
         }
-        return [agVec, vVec, sepVec];
+        return [agVec, vVec, sepVec, fVec, pVec];
     } 
     return {
         ctCallbacks: {},

@@ -334,7 +334,8 @@ var levelManager = (function () {
             w:physDat[2],
             h:physDat[3],
             isStatic: true,
-            fixtureType: 0
+            fixtureType: 0,
+            userData: 'wall'
         }));
     }
     function initChar() {
@@ -356,6 +357,7 @@ var levelManager = (function () {
                 h: 12,
                 acceleration: 7,
                 fixtureType: 1,
+                damping: .5,
                 maxVel: 12
             }));
         }
