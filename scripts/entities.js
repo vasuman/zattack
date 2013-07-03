@@ -10,7 +10,7 @@ function ImageSection(image, gridSize, gridX, gridY, sizeX, sizeY) {
 
 var globalEntityIndex = 0;
 
-var baseObject = function (objDat) {
+function baseObject (objDat) {
         this.pos = {
             x: objDat.x, 
             y: objDat.y
@@ -73,7 +73,7 @@ baseObject.prototype.updateChain = function () {
 };
 
 /* A physicalObject is an object with an attached Box2D body */
-var physicalObject = function (physDefn) {
+function physicalObject (physDefn) {
         baseObject.call(this, physDefn);
         //Create a Box2D box!!
         this.pBody = physicsEngine.makeBody(physDefn, this);
@@ -101,7 +101,7 @@ physicalObject.prototype.push = function (fVec) {
 
 
 /* A mortalObject is basically any object with health */
-var mortalObject = function (mortalDefn) {
+function mortalObject (mortalDefn) {
     physicalObject.call(this, mortalDefn);
     var health = 100;
     this.hurt = function(amt) {
@@ -126,7 +126,7 @@ mortalObject.prototype.update = function() {};
 *   needed to whatever you like 
 *
 * */
-var playerObject = function (playerDefn) {
+function playerObject (playerDefn) {
         playerDefn.userData = 'player';
         playerDefn.filterGroup = -1;
         mortalObject.call(this, playerDefn);
@@ -166,7 +166,7 @@ playerObject.prototype.update=function () {
     }
 };
 
-var bulletObject = function (bulletData) {
+function bulletObject (bulletData) {
     bulletData.userData = 'bullet';
     physicalObject.call(this, bulletData);
     this.timeout = bulletData.timeout;
@@ -185,7 +185,7 @@ bulletObject.prototype.update = function() {
     }
 }
 
-var zombieObject = function (zombieData) {
+function zombieObject (zombieData) {
     zombieData.userData = 'zombie';
     mortalObject.call(this, zombieData);
     this.acc = zombieData.acceleration;
@@ -221,4 +221,22 @@ zombieObject.prototype.update = function () {
  *         this.pBody.SetLinearVelocity()
  * 
  *     } */
+}
+
+// Abstract objects are glorified containers
+function abstractWeapon(weaponData) {
+    this.name = weaponData.name;
+    this.cooldown = weaponData.cooldown;
+    this.blockFire = 0;
+    this.bullet = weaponData.bullet;
+    this.fire = function(vecDat) {
+        if(this.blockFire>0)
+            return;
+        this.bullet(vecDat)
+        this.blockFire = this.cooldown;
+    };
+    this.update = function() {
+        if(this.blockFire>0)
+            this.blockFire--;
+    };
 }

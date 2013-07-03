@@ -1,6 +1,5 @@
 //TODO Add a METAmanager
 
-
 var entityManager = (function () {
     //REMOVE on deployment; only for debugging
     //-----------------------
@@ -29,7 +28,7 @@ var entityManager = (function () {
             if (entities[i-numKilled].pBody){
                 physicsEngine.destroyBody(entities[i-numKilled].pBody)
             }
-            entities.splice(i,1);
+            entities.splice(i-numKilled, 1);
             numKilled+=1;
         }
         drawManager.drawAll(entities);
@@ -60,8 +59,7 @@ var drawManager = (function (){
             minY: 0,
             maxY: 0,
         },
-        handle = null,
-        level = {};
+        handle = null;
     function initCanvas(drawHandle, w, h) {
         handle = drawHandle;
         frame.width = w;
@@ -103,16 +101,9 @@ var drawManager = (function (){
             }
         }
     }
-    function loadLevel(lvl) {
-        var reqImages = [];
-        for(var tileNum in lvl.tiles) {
-            reqImages.push(lvl.tiles[tileNum].image);
-        }
-        level = lvl;
-        resorceManager.loadImages(reqImages, drawManager._preDraw);
-    }
-    function _preDraw() {
-        var gridSize = level.tileSize,
+    function _preDraw(level_url) {
+        var level = resourceManager.json_data[level_url],
+            gridSize = level.tileSize,
             numX = Math.ceil((level.width*gridSize)/subFrame.width), 
             numY = Math.ceil((level.height*gridSize)/subFrame.height);
         console.log(numX, numY)
@@ -130,7 +121,7 @@ var drawManager = (function (){
                     c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX,
                     tile = level.data[i][j], ts = level.tiles[tile];
                 canvii[c_id].getContext('2d').drawImage(
-                    resorceManager.images[ts.image],
+                    resourceManager.images[ts.image],
                     ts.gridX*gridSize,
                     ts.gridY*gridSize,
                     gridSize, gridSize,
@@ -140,6 +131,18 @@ var drawManager = (function (){
                 );
             }
         }
+    }
+    function loadLevelAssets(map_url) {
+        var map = resourceManager.json_data[map_url],
+            reqImages = [];
+        for(var tileNum in map.tiles) {
+            reqImages.push(map.tiles[tileNum].image);
+        }
+        resourceManager.loadImages(reqImages, function(pd, url) { 
+            return function() {
+                pd(url) 
+            }
+        }(_preDraw, map_url));
     }
     function renderBG() {
         for(var i = 0; i < canvii.length; i+=1) {
@@ -153,8 +156,8 @@ var drawManager = (function (){
     }
     function snapViewport(pos) {
         //Two lines!! Muah is GENIUS
-        viewport.x = Math.min(Math.max(viewportLimits.minX, pos.x-frame.width/2), viewportLimits.maxX);
-        viewport.y = Math.min(Math.max(viewportLimits.minY, pos.y-frame.height/2), viewportLimits.maxY);
+        viewport.x = Math.floor(Math.min(Math.max(viewportLimits.minX, pos.x-frame.width/2), viewportLimits.maxX));
+        viewport.y = Math.floor(Math.min(Math.max(viewportLimits.minY, pos.y-frame.height/2), viewportLimits.maxY));
     }
     function isInFrame(pDat) {
         return ((pDat.x < viewport.x + frame.width) &&
@@ -169,8 +172,7 @@ var drawManager = (function (){
         renderTextScreen: renderTextScreen,
         clearScreen: clearScreen,
         drawAll: drawAll,
-        loadLevel: loadLevel,
-        _preDraw: _preDraw,
+        loadLevelAssets: loadLevelAssets,
         snapViewport: snapViewport,
     }
 }());
@@ -192,9 +194,7 @@ var sceneManager = (function () {
             case 0: break;
             case 1: //TODO
                     break;
-            case 2: physicsEngine.update();
-                    entityManager.updateAll();
-                    levelManager.update();
+            case 2: levelManager.update();
                     break;
             case 3: break;
         }
@@ -208,15 +208,13 @@ var sceneManager = (function () {
         });
     };
     function fireSlot(state) {
+        drawManager.clearScreen();
+        HUDManager.clear();
         switch(state) {
             case 0: initStartScreen();
                     break;
-            case 1: drawManager.clearAll();
-                    break;
-            case 2: HUDManager.clear();
-                    entityManager.clearAll();
-                    physicsEngine.refreshWorld();
-                    levelManager.init('data/level_a.json');
+            case 1: break;
+            case 2: levelManager.init('data/level_a.json');
                     contactManager.init();
                     break;
             case 3: drawManager.drawPauseOverlay();
@@ -233,7 +231,7 @@ var sceneManager = (function () {
 })();
 
 
-var resorceManager = (function () {
+var resourceManager = (function () {
     function XHRGet(link_url, callback) {
         var xR = new XMLHttpRequest;
         xR.open('GET', link_url, true);
@@ -259,7 +257,7 @@ var resorceManager = (function () {
     function loadJSON(json_list, callback) {
         var num_json = 0;
         function cCb() {
-            resorceManager.json_data[this.source] = JSON.parse(this.response);
+            resourceManager.json_data[this.source] = JSON.parse(this.response);
             num_json++;
             if(num_json >= json_list.length) {
                 callback(this.source);
@@ -283,18 +281,14 @@ var levelManager = (function () {
         characters = {},
         gridSize = 0,
         obstacles = [],
+        flags = {
+            'CharactersInit':false
+        },
         loaded = false;
-    function init(level_url) {
-        resorceManager.loadJSON([level_url], function(last_loaded) {
-            var lJ = resorceManager.json_data[last_loaded];
-            drawManager.loadLevel(lJ);
-            levelManager.initObstacles(lJ);
-            levelManager.initChar();
-        });
-    }
-    function initObstacles(map) {
+    function initObstacles(map_url) {
+        var map = resourceManager.json_data[map_url],
+            selected = new Array(map.height);
         gridSize = map.tileSize;
-        var selected = new Array(map.height);
         for(var i = 0; i < map.height; i+=1) {
             selected[i] = new Array(map.width);
             for(var j = 0; j < map.width; j+=1) {
@@ -327,6 +321,20 @@ var levelManager = (function () {
         }
         this.grid = new PF.Grid(map.width, map.height, map.data);
     }
+    function registerUpdate(fn) {
+        levelManager.update = fn;
+    }
+    function init(level_url) {
+        registerUpdate(updateLoadingScreen);
+        resourceManager.loadJSON([level_url], 
+            function (llA, iO, iC, url){
+                return function() {
+                    llA(url);
+                    iO(url);
+                    iC();
+                }
+        }(drawManager.loadLevelAssets, initObstacles, initChar, level_url));
+    }
     function addObstacle(physDat) {
         obstacles.push(new physicalObject({
             x:physDat[0],
@@ -339,7 +347,8 @@ var levelManager = (function () {
         }));
     }
     function initChar() {
-        player = new playerObject({
+        registerUpdate(updateGameState);
+        characters.player = new playerObject({
             x:45,
             y:50,
             w:12,
@@ -362,10 +371,16 @@ var levelManager = (function () {
             }));
         }
     }
-    function update() {
-    //CHECK the state of **player** and **zombies**
-        if(levelComplete)
-            return;
+    function updateLoadingScreen() {
+        
+    }
+    function updateGameState() {
+        physicsEngine.update();
+        entityManager.updateAll();
+        //CHECK the state of **player** and **zombies**
+        if (characters.player) {
+            
+        }
     };
     function getConvergenceVector(position) {
         var dPos = characters.player.pos;
@@ -378,7 +393,7 @@ var levelManager = (function () {
         } 
     }
     return {
-        update: update,
+        update: function(){},
         getConvergenceVector: getConvergenceVector,
         init: init,
         initChar: initChar,
@@ -396,7 +411,7 @@ var contactManager = (function () {
                 bullet.ent._dead=true;
                 if(object.ent.hurt) {
                     object.ent.hurt(bullet.ent.hitDamage);
-                    object.ent.stall();
+                    console.log(bullet, object)
                 }
         });
         // Zombie Handler
@@ -430,5 +445,3 @@ var HUDManager = (function () {
         clear: clear
     };
 }());
-
-

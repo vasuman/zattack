@@ -87,7 +87,7 @@ var physicsEngine = (function () {
     };
     function refreshWorld() {
         //TODO add code
-        // delete world;
+        delete world;
         world = new Box2D.Dynamics.b2World(new Vec2(0, _gravity), false);
         world.SetContactListener(ctListen);
         this.ctCallbacks = {};
