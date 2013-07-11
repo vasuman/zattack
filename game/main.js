@@ -1,24 +1,54 @@
-requestAnimationFrame = (window.requestAnimationFrame===undefined)?
-    (window.mozRequestAnimationFrame):(window.requestAnimationFrame);
+require(['engine/physics', 'engine/level', 'engine/controls', 'engine/draw', 'engine/manager', 'game/ent'], 
+function(physics, level, controls, draw, manager, c) {
+    var _done = false;
+    function initManager() {
+        var canvas = document.getElementById('game-canvas');
+        draw.init(canvas, 800, 400);
+        draw.setCanvasSegmentSize(600, 300);
+        draw.setFont('Sans', 34); 
+        physics.init(0, 25, 60);
+    }
 
-function init() {
-    require
-}
-function initGame() {
-    var canvas_el=document.getElementById('game-canvas');
-    //TODO: Make it adaptable
-    canvas_el.width=1030;
-    canvas_el.height=500;
-    var ctxt=canvas_el.getContext('2d');
-    //Controls
-    controlEngine.listenForKeyboardEvents(document.getElementById('main-body'));
-    //Add all draw shit here
-    drawManager.initCanvas(ctxt, canvas_el.width, canvas_el.height);
-    drawManager.setCanvasSegmentSize(canvas_el.width/2, canvas_el.height/2);
-    //Viewport limits!!
-    drawManager.setViewportLimits(-10000, 10240, -10000, 10240)
-    sceneManager.init();
-    requestAnimationFrame(sceneManager.update);
-};
+    function setupControls(element){
+        controls.listenForKeyboardEvents(element);
+        controls.registerEvent('pl-up', 38);
+        controls.registerEvent('pl-down', 40);
+        controls.registerEvent('pl-left', 37);
+        controls.registerEvent('pl-right', 39);
+    }
 
-window.onload=initGame;
+    function update() {
+        if (!_done) {
+            physics.update();
+            manager.updateAll();
+            requestAnimationFrame(update);
+        }
+        else {
+            draw.clearScreen();
+            draw.renderTextScreen('Game Over..', 330, 160)
+        }
+    }
+
+    function breakItDown() {
+        _done = true;
+        manager.clearAll();
+        physics.clearWorldObstacles();
+    }
+
+    function startLevel() {
+        level.loadLevel('data/level_a.json');
+        var player = new c.playerObject({
+            x:50,
+            y:50,
+            w:10,
+            h:10,
+            acceleration: 50,
+            deathTrigger: breakItDown
+        });
+    }
+
+    setupControls(window);
+    initManager();
+    startLevel();
+    update();
+})

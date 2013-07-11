@@ -1,9 +1,3 @@
-var defnAnimation = {
-    personMove:[],
-    personFire:[],
-    testBullet:[],
-}
-
 var defnBullets = {
     testBullet: function(bulletData) {
             bulletData.timeout = 500;
@@ -14,7 +8,7 @@ var defnBullets = {
             bulletData.hitDamage = 10;
             return new bulletObject(bulletData);
     }
-};
+}
 
 var defnWeapons = {
     testGun: new abstractWeapon({
@@ -22,5 +16,4 @@ var defnWeapons = {
         cooldown: 5,
         bullet: defnBullets.testBullet
     })
-};
-
+}

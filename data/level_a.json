@@ -77,13 +77,13 @@
     "tiles": {
         "0": 
             {
-            "image": "test/tilemap1.png",
+            "image": "data/tilemap1.png",
             "gridX": 1,
             "gridY": 1
             }, 
         "1":
             {
-            "image": "test/tilemap1.png",
+            "image": "data/tilemap1.png",
             "gridX": 0,
             "gridY": 2
             }

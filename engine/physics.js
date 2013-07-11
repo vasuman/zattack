@@ -1,33 +1,46 @@
-//GLOABL CONSTANTS DEFINED HERE !!!
-var _scale=30;
-var _gravity=0;
-var _fps=120;
+define(['import/box2d', 'engine/vector'], function (_discard, vec) {
+    //GLOABL CONSTANTS DEFINED HERE !!!
+    var _scale,
+        _fps,
+        world,
+        self = this;
 
-// Insert Box2D shorthands here!!
-var Vec2 = Box2D.Common.Math.b2Vec2;
-var Body = Box2D.Dynamics.b2Body;
-var Shapes = Box2D.Collision.Shapes;
+    // Insert Box2D shorthands here!!
+    var Vec2 = Box2D.Common.Math.b2Vec2,
+        Body = Box2D.Dynamics.b2Body,
+        Shapes = Box2D.Collision.Shapes;
 
-var physicsEngine = (function () {
-    world = new Box2D.Dynamics.b2World(new Vec2(0, _gravity), false);
-    function update() {
-        world.Step(1/_fps, 10, 10);
-        world.ClearForces();
-    };
-    var ctListen = new Box2D.Dynamics.b2ContactListener();
-    ctListen.PostSolve = function (contact, impulse) {
+    var ctListen = new Box2D.Dynamics.b2ContactListener(),
+        ctCallbacks = {},
+        obstacles= [];
+
+    function contactCallback(contact) {
         var bodyA = contact.GetFixtureA().GetBody(),
             bodyB = contact.GetFixtureB().GetBody(),
             udA = bodyA.GetUserData(),
             udB = bodyB.GetUserData();
-        if (udA['class'] in physicsEngine.ctCallbacks) {
-            physicsEngine.ctCallbacks[udA['class']](udA, udB, impulse);
+        if (udA['class'] in ctCallbacks) {
+            ctCallbacks[udA['class']](udA, udB, impulse);
         }
-        if (udB['class'] in physicsEngine.ctCallbacks) {
-            physicsEngine.ctCallbacks[udB['class']](udB, udA, impulse);
+        if (udB['class'] in ctCallbacks) {
+            ctCallbacks[udB['class']](udB, udA, impulse);
         }
-    };
-    world.SetContactListener(ctListen);
+    }
+    ctListen.BeginContact = contactCallback;
+
+    function init(grav, factor, framerate) {
+        _gravity = grav;
+        _fps = framerate;
+        _scale = factor;
+        world = new Box2D.Dynamics.b2World(new Vec2(0, _gravity), false);
+        world.SetContactListener(ctListen);
+    }
+
+    function update() {
+        world.Step(1/_fps, 10, 10);
+        world.ClearForces();
+    }
+
     function makeBody(physData, refObj) {
         /* Fixture Types
          * 0 : Slippy and Bouncy
@@ -79,93 +92,48 @@ var physicsEngine = (function () {
         }
         return createdBody;
     };
+
+    function addWorldObstacle(physData) {
+        physData.userData = 'wall';
+        physData.isStatic = true;
+        physData.fixtureType = 0;
+        var body = makeBody(physData);
+        obstacles.push(body);
+        return body;
+    }
+
+    function clearWorldObstacles() {
+        for(var i = 0; i<obstacles.length; i++) {
+            destroyBody(obstacles[i])
+        }
+        obstacles = [];
+    }
+
     function destroyBody(physBody) {
         world.DestroyBody(physBody); 
     };
+
     function solveListener(className, callback) {
-        this.ctCallbacks[className] = callback;
+        self.ctCallbacks[className] = callback;
     };
-    function refreshWorld() {
-        //TODO add code
-        delete world;
-        world = new Box2D.Dynamics.b2World(new Vec2(0, _gravity), false);
-        world.SetContactListener(ctListen);
-        this.ctCallbacks = {};
-    };
-    function queryAggregateVector(obj, qClass, attract, repulse, maxMagn, food, predator) {
-        var objCenter = obj.GetPosition(),
-            colAB = new Box2D.Collision.b2AABB,
-            agVec = new Vec2,
-            vVec = new Vec2,
-            sepVec = new Vec2,
-            fVec = new Vec2,
-            pVec = new Vec2,
-            numA = 0,
-            numV = 0,
-            numF = 0,
-            numP = 0,
-            range = {x:attract/_scale, y:attract/_scale};
-        colAB.upperBound = vMath.multAdd(objCenter, 1, range);
-        colAB.lowerBound = vMath.multAdd(objCenter, -1, range);
-        function queryCallback(fixture) {
-            var body = fixture.GetBody(),
-                oClass = body.GetUserData()['class'],
-                dVec = vMath.multAdd(body.GetPosition(), -1, objCenter),
-                distance = vMath.magnitude(dVec);
-            if (body != obj && oClass == qClass) {
-                if (distance < attract/_scale) {
-                    if( distance < repulse/_scale ) {
-                        sepVec.Add(vMath.magnify(vMath.invert(dVec), -1));
-                        numA+=1;
-                    } else {
-                        agVec.Add(dVec);
-                    }
-                    vVec.Add(vMath.multAdd(body.GetLinearVelocity(), -1, obj.GetLinearVelocity()));
-                    numV+=1;
-                }
-            }
-            else if (distance < attract/_scale && oClass == food) {
-                    fVec.Add(dVec);
-                    numF+=1;
-            }
-            else if (distance < repulse/_scale && oClass == predator) {
-                    pVec.Add(vMath.magnify(vMath.invert(dVec), -1));
-                    numP+=1;
-            }
-            return true;
-        }
-        world.QueryAABB(queryCallback, colAB);
-        if(numA) {
-            sepVec.Multiply(1/numA);
-            sepVec = vMath.limit(sepVec, maxMagn);
-        }
-        if (numF) {
-            fVec.Multiply(1/numF);
-            fVec = vMath.limit(fVec, maxMagn);
-            fVec.Multiply(3);
-            fVec = vMath.assure(fVec, maxMagn/2);
-        }
-        if (numP) {
-            pVec.Multiply(1/numP);
-            pVec = vMath.limit(pVec, maxMagn);
-        }
-        if (numV) {
-            vVec.Multiply(1/numV);
-            vVec = vMath.limit(vVec, maxMagn);
-        }
-        if (numV != numA) {
-            agVec.Multiply(1/(numV-numA));
-            agVec = vMath.limit(agVec, maxMagn);
-        }
-        return [agVec, vVec, sepVec, fVec, pVec];
-    } 
+
+    function pushBody(body, vector) {
+        body.ApplyForce(vector, body.GetWorldCenter())
+    }
+
+    function getPosition(body) {
+        return vec.sc(body.GetPosition(), _scale)
+    }
     return {
-        ctCallbacks: {},
+        init: init,
+        addWorldObstacle: addWorldObstacle,
         solveListener: solveListener,
-        refreshWorld: refreshWorld,
         destroyBody: destroyBody,
+        getPosition: getPosition,
         update: update,
         makeBody: makeBody,
-        queryAggregateVector: queryAggregateVector
-    };
-})();
+        pushBody: pushBody,
+        clearWorldObstacles: clearWorldObstacles
+    }
+
+});

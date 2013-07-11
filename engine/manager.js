@@ -1,41 +1,50 @@
-//TODO Add a METAmanager
-
-var entityManager = (function () {
-    //REMOVE on deployment; only for debugging
-    //-----------------------
+define(['engine/draw', 'engine/physics'], function (draw, physics) {
+    //FIXME "put var here"
     entities = [];
-    //-----------------------
+
     function registerEntity(ent){
         return entities.push(ent);
     }
+
     function clearAll() {
+        for(var i = 0; i < entities.length; i+=1) {
+            // 'Coz cleanup() may deathTrigger
+            if (entities[i].pBody) {
+                physics.destroyBody(entities[i].pBody)
+            }
+        }
         entities = [];
     }
+
     function updateAll() {
-        var killAfter = [], numKilled = 0;
+        var killAfter = [];
         for(var i = 0; i < entities.length; i+=1) {
             if (entities[i]._dead) {
                 killAfter.push(i);
                 continue;
-            };
+            }
             if (entities[i].noUpdate) {
                 continue;
             }
             entities[i].updateChain();
         }
-        for(var j = 0; j < killAfter.length; j+=1) {
-            var i = killAfter[j];
-            if (entities[i-numKilled].pBody){
-                physicsEngine.destroyBody(entities[i-numKilled].pBody)
-            }
-            entities.splice(i-numKilled, 1);
+        killItems(killAfter);
+        draw.drawAll(entities);
+    }
+
+    function killItems(indexes) {
+        var numKilled = 0;
+        for(var j = 0; j < indexes.length; j+=1) {
+            var i = indexes[j]-numKilled;
+            entities[i].cleanup();
+            entities.splice(i, 1);
             numKilled+=1;
         }
-        drawManager.drawAll(entities);
     }
+
     return {
         updateAll: updateAll,
         clearAll: clearAll,
         registerEntity: registerEntity
     }
-})();
+});

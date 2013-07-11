@@ -1,5 +1,15 @@
-var drawManager = (function (){
-    var viewport = { x:0, y:0 },
+define(['engine/resources'], function(resource) {
+    //TODO move this to an appropriate place
+    function ImageSection(image, gridSize, gridX, gridY, sizeX, sizeY) {
+        this.image = image;
+        this.tile = gridSize;
+        this.sX = gridX * gridSize;
+        this.sY = gridY * gridSize;
+        this.sW = sizeX * gridSize;
+        this.sH = sizeY * gridSize;
+    }
+
+    viewport = { x:0, y:0 },
         frame = { 
             width: 0, 
             height: 0  
@@ -17,15 +27,20 @@ var drawManager = (function (){
             maxY: 0,
         },
         handle = null;
-    function initCanvas(drawHandle, w, h) {
-        handle = drawHandle;
+
+    function initCanvas(canvas, w, h) {
+        handle = canvas.getContext('2d');
         frame.width = w;
         frame.height = h;
+        canvas.width = w;
+        canvas.height = h;
     }
+
     function setCanvasSegmentSize(w, h) {
         subFrame.width = w;
         subFrame.height = h;
     }
+    
     function setViewportLimits(minX, maxX, minY, maxY) {
         viewportLimits = {
             minX: minX,
@@ -34,16 +49,21 @@ var drawManager = (function (){
             maxY: maxY
         }
     }
+    
     function clearScreen() {
         handle.clearRect(0, 0, frame.width, frame.height);
     }
-    //Somewhere else??
-    function renderTextScreen(text, font, pX, pY) {
+    
+    function setFont(family, size) {
+       handle.font = size+'pt '+family;
+    }
+
+    function renderTextScreen(text, pX, pY) {
         //TODO Draw BG
         clearScreen();
-        handle.font = font;
         handle.fillText(text, pX, pY);
     }
+    
     function drawAll(entities) {
         clearScreen();
         renderBG();
@@ -58,12 +78,13 @@ var drawManager = (function (){
             }
         }
     }
+    
     function _preDraw(level_url) {
-        var level = resourceManager.json_data[level_url],
+        var level = resource.json_data[level_url],
             gridSize = level.tileSize,
             numX = Math.ceil((level.width*gridSize)/subFrame.width), 
             numY = Math.ceil((level.height*gridSize)/subFrame.height);
-        console.log(numX, numY)
+        canvii = []
         for(var i = 0; i < numX*numY; i+=1) {
             canvii[i] = document.createElement('canvas');
             canvii[i].width =  subFrame.width + gridSize;
@@ -78,7 +99,7 @@ var drawManager = (function (){
                     c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX,
                     tile = level.data[i][j], ts = level.tiles[tile];
                 canvii[c_id].getContext('2d').drawImage(
-                    resourceManager.images[ts.image],
+                    resource.images[ts.image],
                     ts.gridX*gridSize,
                     ts.gridY*gridSize,
                     gridSize, gridSize,
@@ -89,18 +110,22 @@ var drawManager = (function (){
             }
         }
     }
+    
     function loadLevelAssets(map_url) {
-        var map = resourceManager.json_data[map_url],
+        var map = resource.json_data[map_url],
             reqImages = [];
+        viewportLimits.maxX = Math.floor(map.width * map.tileSize - frame.width);
+        viewportLimits.maxY = Math.floor(map.height * map.tileSize - frame.height);
         for(var tileNum in map.tiles) {
             reqImages.push(map.tiles[tileNum].image);
         }
-        resourceManager.loadImages(reqImages, function(pd, url) { 
+        resource.loadImages(reqImages, function(pd, url) { 
             return function() {
                 pd(url) 
             }
         }(_preDraw, map_url));
     }
+    
     function renderBG() {
         for(var i = 0; i < canvii.length; i+=1) {
             if(isInFrame(canvii[i])) {
@@ -111,19 +136,22 @@ var drawManager = (function (){
             }
         }
     }
+    
     function snapViewport(pos) {
         //Two lines!! Muah is GENIUS
         viewport.x = Math.floor(Math.min(Math.max(viewportLimits.minX, pos.x-frame.width/2), viewportLimits.maxX));
         viewport.y = Math.floor(Math.min(Math.max(viewportLimits.minY, pos.y-frame.height/2), viewportLimits.maxY));
     }
+    
     function isInFrame(pDat) {
         return ((pDat.x < viewport.x + frame.width) &&
                 (pDat.x + pDat.width > viewport.x) &&
                 (pDat.y < viewport.y + frame.height) &&
                 (pDat.y + pDat.height > viewport.y));
     }
+    
     return {
-        initCanvas: initCanvas,
+        init: initCanvas,
         setCanvasSegmentSize: setCanvasSegmentSize,
         setViewportLimits: setViewportLimits,
         renderTextScreen: renderTextScreen,
@@ -131,7 +159,8 @@ var drawManager = (function (){
         drawAll: drawAll,
         loadLevelAssets: loadLevelAssets,
         snapViewport: snapViewport,
+        setFont: setFont,
     }
-}());
+});
 
 
