@@ -91,6 +91,7 @@ define(['engine/physics', 'engine/manager'], function(physics, manager) {
         }
         physics.destroyBody(this.pBody);
     }
+
     return {
         baseObject: baseObject,
         physicalObject: physicalObject

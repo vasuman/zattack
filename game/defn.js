@@ -1,19 +1,20 @@
-var defnBullets = {
-    testBullet: function(bulletData) {
+define(['game/ent'], function(e) {
+    function testBullet(bulletData) {
             bulletData.timeout = 500;
             bulletData.w = 5;
             bulletData.h = 5;
-            bulletData.speed = 20;
-            bulletData.filterGroup = -1;
+            bulletData.speed = 500;
             bulletData.hitDamage = 10;
-            return new bulletObject(bulletData);
+            return new e.bulletObject(bulletData);
     }
-}
-
-var defnWeapons = {
-    testGun: new abstractWeapon({
+    
+    var testGun = new e.abstractWeapon({
         name: 'testGun',
         cooldown: 5,
-        bullet: defnBullets.testBullet
+        bullet: testBullet
     })
-}
+
+    return {
+        testGun: testGun,
+    }
+})

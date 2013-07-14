@@ -72,58 +72,88 @@ define(['engine/resources'], function(resource) {
             if (isInFrame(dDat)) {
                 //TODO: Implement sprites!!
                 handle.fillRect(
-                    dDat.x - viewport.x, 
-                    dDat.y - viewport.y, 
+                    Math.floor(dDat.x - viewport.x), 
+                    Math.floor(dDat.y - viewport.y), 
                     dDat.width, dDat.height);
             }
         }
     }
     
-    function _preDraw(level_url) {
+    function _preDraw(level_url, callback) {
         var level = resource.json_data[level_url],
-            gridSize = level.tileSize,
-            numX = Math.ceil((level.width*gridSize)/subFrame.width), 
-            numY = Math.ceil((level.height*gridSize)/subFrame.height);
+            gridW = level.tilewidth,
+            gridH = level.tileheight,
+            numX = Math.ceil((level.width*gridW)/subFrame.width), 
+            numY = Math.ceil((level.height*gridH)/subFrame.height);
         canvii = []
         for(var i = 0; i < numX*numY; i+=1) {
             canvii[i] = document.createElement('canvas');
-            canvii[i].width =  subFrame.width + gridSize;
-            canvii[i].height = subFrame.height + gridSize;
+            canvii[i].width =  subFrame.width + gridW;
+            canvii[i].height = subFrame.height + gridH;
             //Need to alias values for inFrame
             canvii[i].x = (i % numX)*subFrame.width;
             canvii[i].y = Math.floor(i/numX)*subFrame.height;
         }
-        for(var i = 0; i < level.width; i+=1) {
-            for(var j = 0; j < level.height; j+=1) {
-                var x = j*gridSize, y = i*gridSize,
-                    c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX,
-                    tile = level.data[i][j], ts = level.tiles[tile];
-                canvii[c_id].getContext('2d').drawImage(
-                    resource.images[ts.image],
-                    ts.gridX*gridSize,
-                    ts.gridY*gridSize,
-                    gridSize, gridSize,
-                    x - canvii[c_id].x,
-                    y - canvii[c_id].y,
-                    gridSize, gridSize
-                );
+
+        for (var k = 0; k < level.layers.length; k+=1) {
+            var layer = level.layers[k];
+            for(var i = 0; i < layer.width; i+=1) {
+                for(var j = 0; j < layer.height; j+=1) {
+                    if(layer.data[j+i*layer.width] == 0) {
+                        continue;
+                    }
+                    var x = j*gridW,
+                        y = i*gridH,
+                        tile = getTile(level, layer.data[j+i*layer.width]),
+                        c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX;
+                    canvii[c_id].getContext('2d').drawImage(
+                        resource.images[tile.image],
+                        tile.sx, tile.sy,
+                        tile.sw, tile.sh,
+                        x - canvii[c_id].x,
+                        y - canvii[c_id].y,
+                        gridW, gridH
+                    );
+                }
             }
+        }
+        callback();
+    }
+   
+    function getTile(map, gid) {
+        var col, i = 0, ts;
+        for(i = 0; i < map.tilesets.length; i+=1) {
+            if (gid < map.tilesets[i].firstgid) {
+                break;
+            }
+        }
+        ts = map.tilesets[i-1];
+        ts.margin = ts.margin || 0;
+        ts.spacing = ts.spacing || 0;
+        col = Math.floor(ts.imagewidth/ts.tilewidth)
+        gid -= ts.firstgid;
+        return {
+            image: ts.image,
+            sx: (gid%col)*(ts.spacing+ts.tilewidth)+ts.margin,
+            sy: Math.floor(gid/col)*(ts.spacing+ts.tileheight)+ts.margin,
+            sw: ts.tilewidth,
+            sh: ts.tileheight
         }
     }
-    
-    function loadLevelAssets(map_url) {
+
+    function loadLevelAssets(map_url, callback) {
         var map = resource.json_data[map_url],
             reqImages = [];
-        viewportLimits.maxX = Math.floor(map.width * map.tileSize - frame.width);
-        viewportLimits.maxY = Math.floor(map.height * map.tileSize - frame.height);
-        for(var tileNum in map.tiles) {
-            reqImages.push(map.tiles[tileNum].image);
+        viewportLimits.maxX = Math.floor(map.width * map.tilewidth - frame.width);
+        viewportLimits.maxY = Math.floor(map.height * map.tileheight - frame.height);
+        for(var i = 0; i < map.tilesets.length; i+=1) {
+            reqImages.push(map.tilesets[i].image);
         }
-        resource.loadImages(reqImages, function(pd, url) { 
+        resource.loadImages(reqImages, (function(pd, url, cb) { 
             return function() {
-                pd(url) 
+                pd(url, cb); 
             }
-        }(_preDraw, map_url));
+        }(_preDraw, map_url, callback)));
     }
     
     function renderBG() {

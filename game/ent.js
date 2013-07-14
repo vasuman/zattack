@@ -1,6 +1,5 @@
 define(['engine/entities', 'engine/physics', 'engine/controls', 'engine/draw', 'engine/vector'], 
 function(e, physics, controls, draw, vec) {
-    console.log(arguments);
     function getPlayerMovement() {
         return {
             x: controls.ev('pl-right') - controls.ev('pl-left'),
@@ -8,11 +7,10 @@ function(e, physics, controls, draw, vec) {
         }
     }
     
-    //TODO implement
     function keyFire() {
         return {
-            x: 0,
-            y: 0
+            x: controls.ev('f-right') - controls.ev('f-left'),
+            y: controls.ev('f-down') - controls.ev('f-up')
         }
     }
 
@@ -24,75 +22,76 @@ function(e, physics, controls, draw, vec) {
         }
     }
 
+    //TODO allow change scheme
     var firingVector = keyFire;
+
+    function useMouse(s) {
+        firingVector = (s) ? mouseFire : keyFire;
+    }
 
     function mortalObject (mortalDefn) {
         e.physicalObject.call(this, mortalDefn);
-        var health = 100;
-        function damage (amt) {
-            health -= amt;
-            if (health<0) {
-                this._dead = true;
-            }
-        }
-        this.hurt = damage;
+        this.health = mortalDefn.health || 100;
     }
 
     mortalObject.prototype.__proto__ = e.physicalObject.prototype;
 
     mortalObject.prototype.update = function() {};
 
+    mortalObject.prototype.damage = function(amt) {
+        this.health -= amt;
+        if (this.health<0) {
+            this._dead = true;
+        }
+    }
 
     function playerObject (playerDefn) {
             playerDefn.userData = 'player';
             playerDefn.filterGroup = -1;
             mortalObject.call(this, playerDefn);
-            this.accel = playerDefn.acceleration;
+            this.speed = playerDefn.speed;
             this.weapon = playerDefn.weapon;
     };
 
     playerObject.prototype.__proto__ = mortalObject.prototype;
 
     playerObject.prototype.update=function () {
-
         //VIEWPORT CENTER
         draw.snapViewport(this.pos)
-        
         //WEAPON UPDATE
-        // this.weapon.update();
-        
+        this.weapon.update();
         //MOVEMENT
         var mVec = getPlayerMovement(),
-            scale = this.accel;
+            scale = this.speed;
+        // Diagonal scaling
         if (mVec.x || mVec.y) {
-            // Diagonal scaling
             if (mVec.x && mVec.y) {
                 scale/=Math.SQRT2;
             }
-            physics.pushBody(this.pBody, vec.sc(mVec, scale));
+            physics.moveBody(this.pBody, vec.sc(mVec, scale));
         }
-        
         //FIRING
-        /* var fVec = firingVector();
-         * if (fVec.x || fVec.y ) {
-         *     var cPos = vMath.multAdd(this.pos, this.dim.w, fVec);
-         *     var cVel = this.pBody.GetLinearVelocity();
-         *     this.weapon.fire({
-         *         x: cPos.x,
-         *         y: cPos.y,
-         *         dx: fVec.x,
-         *         dy: fVec.y,
-         *         sx: cVel.x,
-         *         sy: cVel.y
-         *     });
-         * } */
+        var fVec = firingVector();
+        if (fVec.x || fVec.y ) {
+            var curPos = vec.mad(this.pos, this.dim.w, fVec);
+            var curVel = physics.getVelocity(this.pBody);
+            this.weapon.fire({
+                x: curPos.x,
+                y: curPos.y,
+                dx: fVec.x,
+                dy: fVec.y,
+                sx: curVel.x,
+                sy: curVel.y
+            });
+        } 
     };
 
     function bulletObject (bulletData) {
         bulletData.userData = 'bullet';
+        bulletData.filterGroup = -1;
         e.physicalObject.call(this, bulletData);
         this.timeout = bulletData.timeout;
-        this.pBody.SetLinearVelocity({
+        physics.moveBody(this.pBody, {
             x: bulletData.dx*bulletData.speed+bulletData.sx, 
             y: bulletData.dy*bulletData.speed+bulletData.sy
         });
@@ -139,5 +138,7 @@ function(e, physics, controls, draw, vec) {
 
     return {
         playerObject: playerObject,
+        abstractWeapon: abstractWeapon,
+        bulletObject: bulletObject,
     }
 });

@@ -10,7 +10,7 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         Body = Box2D.Dynamics.b2Body,
         Shapes = Box2D.Collision.Shapes;
 
-    var ctListen = new Box2D.Dynamics.b2ContactListener(),
+    ctListen = new Box2D.Dynamics.b2ContactListener(),
         ctCallbacks = {},
         obstacles= [];
 
@@ -20,10 +20,10 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
             udA = bodyA.GetUserData(),
             udB = bodyB.GetUserData();
         if (udA['class'] in ctCallbacks) {
-            ctCallbacks[udA['class']](udA, udB, impulse);
+            ctCallbacks[udA['class']](udA, udB);
         }
         if (udB['class'] in ctCallbacks) {
-            ctCallbacks[udB['class']](udB, udA, impulse);
+            ctCallbacks[udB['class']](udB, udA);
         }
     }
     ctListen.BeginContact = contactCallback;
@@ -91,7 +91,7 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
             });
         }
         return createdBody;
-    };
+    }
 
     function addWorldObstacle(physData) {
         physData.userData = 'wall';
@@ -111,28 +111,44 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
 
     function destroyBody(physBody) {
         world.DestroyBody(physBody); 
-    };
+    }
 
     function solveListener(className, callback) {
         self.ctCallbacks[className] = callback;
-    };
+    }
+
+    function moveBody(body, vector) {
+        body.SetLinearVelocity(vec.sc(vector, 1/_scale));
+    }
+
+    function getVelocity(body) {
+        return vec.sc(body.GetLinearVelocity(), _scale)
+    }
 
     function pushBody(body, vector) {
-        body.ApplyForce(vector, body.GetWorldCenter())
+        body.ApplyForce(vector, body.GetWorldCenter());
     }
 
     function getPosition(body) {
-        return vec.sc(body.GetPosition(), _scale)
+        return vec.sc(body.GetPosition(), _scale);
     }
+    
+    function clearListeners() {
+        ctCallbacks = {};
+    }
+
     return {
         init: init,
         addWorldObstacle: addWorldObstacle,
+        clearListeners: clearListeners,
         solveListener: solveListener,
         destroyBody: destroyBody,
         getPosition: getPosition,
+        getVelocity: getVelocity,
+        moveBody: moveBody,
         update: update,
         makeBody: makeBody,
-        pushBody: pushBody,
+        applyForce: pushBody,
         clearWorldObstacles: clearWorldObstacles
     }
 
