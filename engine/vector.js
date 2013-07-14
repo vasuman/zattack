@@ -1,4 +1,16 @@
 define([], function() {
+
+    function mag(va) {
+        return Math.sqrt(va.x*va.x+va.y*va.y);
+    }
+
+    function sc(va, fct) {
+        return {
+            x: va.x*fct,
+            y: va.y*fct
+        }
+    }
+
     return {
         make: function(x, y) {
             return {
@@ -19,15 +31,8 @@ define([], function() {
                 y: va.y/m
             }
         },
-        mag: function mag(va) {
-            return Math.sqrt(va.x*va.x+va.y*va.y);
-        },
-        sc: function sc(va, fct) {
-            return {
-                x: va.x*fct,
-                y: va.y*fct
-            }
-        },
+        mag: mag,
+        sc: sc,
         inv: function(va) {
             if (!(va.x && va.y)) {
                 return va;
@@ -50,6 +55,10 @@ define([], function() {
                 return sc(va, value/m);
             }
             return va;
+        },
+        eq: function(va, value) {
+            var m = mag(va);
+            return sc(va, value/m);
         }
     }
 });

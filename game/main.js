@@ -1,6 +1,7 @@
 require(['engine/physics', 'engine/level', 'engine/controls', 'engine/draw', 'engine/manager', 'game/ent', 'game/defn'], 
 function(physics, level, controls, draw, manager, c, d) {
-    var _done = false;
+    var _done = false,
+        maxSpawn = 10;
     console.log(d);
     function initManager() {
         var canvas = document.getElementById('game-canvas');
@@ -41,16 +42,45 @@ function(physics, level, controls, draw, manager, c, d) {
         physics.clearListeners();
     }
 
+    function spawnXomB(start) {
+        spawnXomB.numSpawn = spawnXomB.numSpawn || 0;
+        if (!start) {
+            spawnXomB.numKilled = spawnXomB.numKilled || 0;
+            spawnXomB.numKilled += 1;
+        }
+        if(spawnXomB.numSpawn < maxSpawn) {
+            var spawnPoint = level.getSpawn('XomB');
+            new c.zombieObject({
+                x: spawnPoint.x,
+                y: spawnPoint.y,
+                w: 10,
+                h: 10,
+                speed: 20,
+                deathTrigger: spawnXomB,
+            })
+            spawnXomB.numSpawn += 1;
+        }
+        else if (spawnXomB.numSpawn == spawnXomB.numKilled) {
+            breakItDown();
+        }
+    }
+
+    sp = spawnXomB;
     function loadPlayer() {
+        var spawnPoint = level.getSpawn('Player');
         new c.playerObject({
-            x:50,
-            y:50,
+            x: spawnPoint.x,
+            y: spawnPoint.y,
             w:10,
             h:10,
-            speed: 100,
+            speed: 50,
             deathTrigger: breakItDown,
             weapon: d.testGun,
         });
+        
+        for (var i = 0; i < 10; i+=1) {
+            spawnXomB(true);
+        }
     }
 
     function startLevel() {
@@ -63,15 +93,18 @@ function(physics, level, controls, draw, manager, c, d) {
         function bulletContact(bullet, object) {
             bullet.ent._dead = true;
             if (object['class'] == 'zombie') {
-                object.ent._dead = true;
+                console.log('hurt')
+                object.ent.damage(bullet.ent.hitDamage);
             }
         }
         physics.solveListener('bullet', bulletContact)
     }
+
     function setupGame() {
         contactCallbacks();
         startLevel();
     }
+
     setupControls(window);
     initManager();
     setupGame();

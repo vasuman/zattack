@@ -23,7 +23,10 @@ function(e, physics, controls, draw, vec) {
     }
 
     //TODO allow change scheme
-    var firingVector = keyFire;
+    var firingVector = keyFire,
+        curPlayer = {
+            _dead: true,
+        };
 
     function useMouse(s) {
         firingVector = (s) ? mouseFire : keyFire;
@@ -46,11 +49,15 @@ function(e, physics, controls, draw, vec) {
     }
 
     function playerObject (playerDefn) {
-            playerDefn.userData = 'player';
-            playerDefn.filterGroup = -1;
-            mortalObject.call(this, playerDefn);
-            this.speed = playerDefn.speed;
-            this.weapon = playerDefn.weapon;
+        if (!curPlayer._dead) {
+            curPlayer._dead = true;
+        }
+        playerDefn.userData = 'player';
+        playerDefn.filterGroup = -1;
+        mortalObject.call(this, playerDefn);
+        this.speed = playerDefn.speed;
+        this.weapon = playerDefn.weapon;
+        curPlayer = this;
     };
 
     playerObject.prototype.__proto__ = mortalObject.prototype;
@@ -64,12 +71,10 @@ function(e, physics, controls, draw, vec) {
         var mVec = getPlayerMovement(),
             scale = this.speed;
         // Diagonal scaling
-        if (mVec.x || mVec.y) {
-            if (mVec.x && mVec.y) {
-                scale/=Math.SQRT2;
-            }
-            physics.moveBody(this.pBody, vec.sc(mVec, scale));
+        if (mVec.x && mVec.y) {
+            scale/=Math.SQRT2;
         }
+        physics.moveBody(this.pBody, vec.sc(mVec, scale));
         //FIRING
         var fVec = firingVector();
         if (fVec.x || fVec.y ) {
@@ -109,13 +114,15 @@ function(e, physics, controls, draw, vec) {
     function zombieObject (zombieData) {
         zombieData.userData = 'zombie';
         mortalObject.call(this, zombieData);
-        this.acc = zombieData.acceleration;
+        this.speed = zombieData.speed;
     }
 
     zombieObject.prototype.__proto__ = mortalObject.prototype;
 
     zombieObject.prototype.update = function () {
         //TODO again...
+        var mv = vec.eq(vec.mad(curPlayer.pos, -1, this.pos), this.speed)
+        physics.moveBody(this.pBody, mv);
     }
 
     // Abstract objects are glorified containers
@@ -124,21 +131,26 @@ function(e, physics, controls, draw, vec) {
         this.cooldown = weaponData.cooldown;
         this.blockFire = 0;
         this.bullet = weaponData.bullet;
-        this.fire = function(vecDat) {
-            if(this.blockFire>0)
-                return;
-            this.bullet(vecDat)
-            this.blockFire = this.cooldown;
-        };
-        this.update = function() {
-            if(this.blockFire>0)
-                this.blockFire--;
-        };
+    }
+
+    abstractWeapon.prototype.fire = function(vecDat) {
+        if(this.blockFire>0) {
+            return;
+        }
+        this.bullet(vecDat);
+        this.blockFire = this.cooldown;
+    }
+
+    abstractWeapon.prototype.update = function() {
+        if(this.blockFire>0) {
+            this.blockFire--;
+        }
     }
 
     return {
         playerObject: playerObject,
         abstractWeapon: abstractWeapon,
         bulletObject: bulletObject,
+        zombieObject: zombieObject,
     }
 });

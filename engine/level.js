@@ -1,79 +1,79 @@
 define(['engine/physics', 'engine/resources', 'engine/draw'], 
     function (physics, res, draw) {
         var levelComplete = false,
-            characters = {},
-            loaded = false;
-       
-        function initObstacles(map_url) {
-            var level = res.json_data[map_url],
-                map = {};
-            // Select correct layer with 'solid' property
-            for(var i = 0; i < level.layers.length; i+=1) {
-                map = level.layers[i];
-                if (map properties && map.properties.solid) {
-                    break;
-                }
-            }
-            // If no 'solid' layer
-            if (i == level.layers.length) {
-                return;
-            }
-            var selected = new Array(map.height),
-            gridH = level.tileheight,
-            gridW = level.tilewidth;
-            // Selected array intialization
-            for(var i = 0; i < map.height; i+=1) {
-                selected[i] = new Array(map.width);
-                for(var j = 0; j < map.width; j+=1) {
-                    selected[i][j] = false;
-                }
-            }
-            for(var m = 0; m < map.data.length; m+=1) {
-                var i = m % map.width,
-                    j = Math.floor(m/map.width);
-                if (map.data[m]>0 && !selected[j][i]) {
-                    for(var k = i; map.data[j*map.width+k] > 0; k+=1) {
-                        selected[j][k] = true;
-                    }
-                    for(var l = j; l < map.height; l+=1) {
-                        var tileSection = map.data.slice(l*map.width+i, l*map.width+k);
-                        var isSolid = tileSection.reduce(function (pv, a) {
-                            return (a>0) && pv; }, true);
-                        if(!isSolid) {
-                            break;
-                        }
-                        for(var m = i; m < k; m+=1) {
-                            selected[l][m] = true;
-                        }
-                    }
-                    addObstacle([(i+k)/2*gridW, (j+l)/2*gridH, 
-                                (k-i)*gridW, (l-j)*gridH]);
-                }
+            loaded = false,
+            spawnAreas = {};
 
+        function randInt(b, r) {
+            return b+Math.floor(r*Math.random())
+        }
+
+        function getSpawn(type) {
+            var areas = spawnAreas[type] || spawnAreas['generic'],
+                area = areas[randInt(0, areas.length)];
+            return {
+                x: randInt(area.x, area.w),
+                y: randInt(area.y, area.h)
             }
         }
-        
-        function addObstacle(physDat) {
-            physics.addWorldObstacle({
-                x:physDat[0],
-                y:physDat[1],
-                w:physDat[2],
-                h:physDat[3],
-            });
+
+        function initMap(map_url, callback) {
+            var layers = res.json_data[map_url].layers;
+            for (var i = 0; i < layers.length; i+=1) {
+                if (layers[i].type = 'objectgroup' && layers[i].objects) {
+                    if (layers[i].properties) {
+                        if (layers[i].properties.obstacles) {
+                            solidify(layers[i]);
+                        } 
+                        else if (layers[i].properties.spawn) {
+                            spawnify(layers[i])
+                        }
+                    }
+                }
+            }
+            callback();
+        }
+
+        function spawnify(layer) {
+            for (var i = 0; i < layer.objects.length; i+=1) {
+                var object = layer.objects[i],
+                    id = (object.type || 'generic');
+                spawnAreas[id] = spawnAreas[id] || [];
+                spawnAreas[id].push({
+                    x: object.x,
+                    y: object.y,
+                    w: object.width,
+                    h: object.height,
+                });
+            }
+        }
+
+        function solidify(layer) {
+            for (var i = 0; i < layer.objects.length; i+=1) {
+                var object = layer.objects[i];
+                physics.addWorldObstacle({
+                    x: object.x + object.width/2,
+                    y: object.y + object.height/2,
+                    w: object.width,
+                    h: object.height
+                })
+            }
         }
 
         function loadLevel(level_url, callback) {
             res.loadJSON([level_url], 
-                function (llA, iO, url){
+                function (llA, iO){
                     return function() {
-                        llA(url, callback);
-                        iO(url);
+                        llA(level_url, function() {
+                            iO(level_url, callback);
+                        });
                     }
-                }(draw.loadLevelAssets, initObstacles, level_url));
+                }(draw.loadLevelAssets, initMap));
         }
         
         return {
-            loadLevel: loadLevel
+            loadLevel: loadLevel,
+            getSpawn: getSpawn,
         }
 });
 

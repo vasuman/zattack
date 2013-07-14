@@ -36,9 +36,12 @@ define(['engine/draw', 'engine/physics'], function (draw, physics) {
         var numKilled = 0;
         for(var j = 0; j < indexes.length; j+=1) {
             var i = indexes[j]-numKilled;
-            entities[i].cleanup();
-            entities.splice(i, 1);
-            numKilled+=1;
+            // TODO Use mutex as clearAll also deletes elements
+            if (entities[i]){
+                entities[i].cleanup();
+                entities.splice(i, 1);
+                numKilled+=1;
+            }
         }
     }
 

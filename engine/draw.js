@@ -85,7 +85,7 @@ define(['engine/resources'], function(resource) {
             gridH = level.tileheight,
             numX = Math.ceil((level.width*gridW)/subFrame.width), 
             numY = Math.ceil((level.height*gridH)/subFrame.height);
-        canvii = []
+        canvii = [];
         for(var i = 0; i < numX*numY; i+=1) {
             canvii[i] = document.createElement('canvas');
             canvii[i].width =  subFrame.width + gridW;
@@ -94,18 +94,20 @@ define(['engine/resources'], function(resource) {
             canvii[i].x = (i % numX)*subFrame.width;
             canvii[i].y = Math.floor(i/numX)*subFrame.height;
         }
-
         for (var k = 0; k < level.layers.length; k+=1) {
             var layer = level.layers[k];
-            for(var i = 0; i < layer.width; i+=1) {
-                for(var j = 0; j < layer.height; j+=1) {
-                    if(layer.data[j+i*layer.width] == 0) {
+            if (layer.type = 'tilelayer' && layer.properties && layer.properties.predraw){
+                for(var m = 0; m < layer.data.length; m+=1) {
+                    var j = m%layer.width,
+                        i = Math.floor(m/layer.width);
+                    if(layer.data[m] == 0) {
                         continue;
                     }
                     var x = j*gridW,
                         y = i*gridH,
-                        tile = getTile(level, layer.data[j+i*layer.width]),
-                        c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX;
+                    tile = getTile(level, layer.data[m]),
+                    // Canvas ID
+                    c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX;
                     canvii[c_id].getContext('2d').drawImage(
                         resource.images[tile.image],
                         tile.sx, tile.sy,
