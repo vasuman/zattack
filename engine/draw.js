@@ -100,17 +100,6 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         }
     }
 
-    function drawRipples() {
-        for(var i = ripples.length-1; i >= 0; i-=1) {
-            ripples[i].stage+=ripples[i].inc;
-            if (ripples[i].stage == ripples[i].end) {
-                ripples.splice(i,1);
-                continue;
-            }
-            drawRipple(ripples[i])
-        }
-    }
-    
     function offsetCenter(pos) {
         return {
             x: pos.x + viewport.x,
@@ -214,7 +203,7 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
             }
         }(_preDraw, map_url, callback)));
     }
-    
+
     function renderBG() {
         for(var i = 0; i < canvii.length; i+=1) {
             if(isInFrame(canvii[i])) {

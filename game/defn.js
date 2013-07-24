@@ -17,9 +17,9 @@ define(['game/ent'], function(e) {
             w: 5,
             h: 5,
             speed: 500,
-            hitDamage: 50,
+            hitDamage: 150,
         },
-        sound: 100,
+        sound: 175,
     });
 
 

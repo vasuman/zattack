@@ -62,6 +62,7 @@ function(physics, level, controls, draw, manager, c, d) {
                 w: 10,
                 h: 10,
                 speed: 40,
+                damage: 0.5,
                 deathTrigger: spawnXomB,
             })
             spawnXomB.numSpawn += 1;
@@ -78,8 +79,9 @@ function(physics, level, controls, draw, manager, c, d) {
             y: spawnPoint.y,
             w:10,
             h:10,
-            speed: 20,
+            speed: 30,
             deathTrigger: breakItDown,
+            sound: 100,
             weapon: d.testGun,
             stamina: 400,
             regen: 1,

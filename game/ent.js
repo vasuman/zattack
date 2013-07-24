@@ -27,7 +27,7 @@ function(e, physics, controls, draw, vec, resources) {
     }
 
     //TODO allow change scheme
-    var firingVector = keyFire,
+    var firingVector = mouseFire,
         curPlayer = {
             ent: {
                 health: -1,
@@ -67,11 +67,12 @@ function(e, physics, controls, draw, vec, resources) {
         this.maxStamina = playerDefn.stamina;
         this.weapon = playerDefn.weapon;
         this.stamina = this.maxStamina;
-        this.runSound = playerDefn.sound || 100;
+        this.runInterval = 0;
+        this.sound = playerDefn.sound;
         this.rippleData = {
-            radius: this.runSound,
+            radius: this.sound,
             timeout: 50,
-            canvas: makeRipple(this.runSound),
+            canvas: makeRipple(this.sound),
         }
         this.leeches = [];
         curPlayer.ent = this;
@@ -86,7 +87,7 @@ function(e, physics, controls, draw, vec, resources) {
 
     playerObject.prototype.update=function () {
         var ran = false;
-        this.runSound += 1;
+        this.runInterval += 1;
         //VIEWPORT CENTER
         draw.snapViewport(this.pos)
         //WEAPON UPDATE
@@ -99,12 +100,12 @@ function(e, physics, controls, draw, vec, resources) {
                 if (!this.tired) {
                     this.stamina -= 1;
                     scale*=3;
-                    if(this.runSound > 20) {
+                    if(this.runInterval > 20) {
                         this.rippleData.x = this.pos.x;
                         this.rippleData.y = this.pos.y;
-                        soundSource(this.pos, 200);
+                        soundSource(this.pos, this.sound);
                         new ripple(this.rippleData);
-                        this.runSound = 0;
+                        this.runInterval = 0;
                     }
                     ran = true;
                 }
@@ -128,7 +129,6 @@ function(e, physics, controls, draw, vec, resources) {
         var fVec = vec.norm(firingVector());
         if (fVec.x || fVec.y ) {
             //TODO emit sound
-            console.log('a')
             var curPos = vec.mad(this.pos, this.dim.w, fVec);
             var curVel = physics.getVelocity(this.pBody);
             this.weapon.fire({
@@ -182,6 +182,7 @@ function(e, physics, controls, draw, vec, resources) {
          */
          this._state = 0;
          this.timeout = 0;
+         this.suckDamage = zombieData.damage;
          this.target = {
             step: -1,
          };
@@ -211,7 +212,7 @@ function(e, physics, controls, draw, vec, resources) {
             }
         }
         else if (this._state == -1) {
-            this.pl.damage(0.1);
+            this.pl.damage(this.suckDamage);
         }
     }
 
@@ -231,20 +232,22 @@ function(e, physics, controls, draw, vec, resources) {
     function makeRipple(radius) {
         var oc = document.createElement('canvas'),
             hd = oc.getContext('2d');
+            gr = null;
         oc.width = 2*radius;
         oc.height = 2*radius;
+        gr = hd.createRadialGradient(radius, radius, radius/10, radius, radius, radius*2);
+        gr.addColorStop(1, 'rgba(0,0,0,0.8)');
+        gr.addColorStop(0, 'rgba(0,0,0,0)');
         hd.beginPath();
         hd.arc(radius, radius, radius, 0, 2 * Math.PI, false);
-        hd.strokeStyle = '#666666'
-        hd.lineWidth = 3;
-        hd.stroke();
+        hd.fillStyle = gr;
+        hd.fill();
         hd.closePath();
         hd.beginPath();
-        hd.arc(radius, radius, 9, 0, 2 * Math.PI, false);
-        hd.fillStyle = 'red';
+        hd.arc(radius, radius, 10, 0, 2 * Math.PI, false);
+        hd.fillStyle = 'rgba(170,0,0,0.5)';
         hd.fill();
-        hd.lineWidth = 0;
-        hd.stroke();
+        hd.closePath();
         var name = 'ripple-'+radius;
         resources.registerCanvas(name, oc)
         return name;
@@ -311,10 +314,10 @@ function(e, physics, controls, draw, vec, resources) {
         this.bulletData.y = vecDat.pos.y;
         this.bulletData.dx = vecDat.dir.x;
         this.bulletData.dy = vecDat.dir.y;
-        soundSource(vecDat.pos, this.sound);
         this.rippleData.x = vecDat.pos.x;
         this.rippleData.y = vecDat.pos.y;
         new ripple(this.rippleData);
+        soundSource(vecDat.pos, this.sound);
         return new bulletObject(this.bulletData);
     }
 
