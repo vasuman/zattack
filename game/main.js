@@ -1,33 +1,39 @@
 require(['engine/physics', 'engine/level', 'engine/controls', 'engine/draw', 'engine/manager', 'game/ent', 'game/defn'], 
 function(physics, level, controls, draw, manager, c, d) {
     var _done = false,
-        maxSpawn = 10;
-    console.log(d);
+        maxSpawn = 10,
+        infi = true,
+        zombies = [];
+
+    var canvas = document.getElementById('game-canvas');
     function initManager() {
-        var canvas = document.getElementById('game-canvas');
         draw.init(canvas, 800, 400);
         draw.setCanvasSegmentSize(600, 300);
-        draw.setFont('Sans', 34); 
         physics.init(0, 25, 60);
     }
 
     function setupControls(element){
+        controls.listenForMouseEvents(canvas);
         controls.listenForKeyboardEvents(element);
-        controls.registerEvent('f-up',      87);
-        controls.registerEvent('f-down',    83);
-        controls.registerEvent('f-left',    65);
-        controls.registerEvent('f-right',   68);
-        controls.registerEvent('pl-up',     38);
-        controls.registerEvent('pl-down',   40);
-        controls.registerEvent('pl-left',   37);
-        controls.registerEvent('pl-right',  39);
+        controls.registerEvent('melee',      90);
+        controls.registerEvent('run',        16);
+        controls.registerEvent('pl-up',      87);
+        controls.registerEvent('pl-down',    83);
+        controls.registerEvent('pl-left',    65);
+        controls.registerEvent('pl-right',   68);
+        controls.registerEvent('f-up',       38);
+        controls.registerEvent('f-down',     40);
+        controls.registerEvent('f-left',     37);
+        controls.registerEvent('f-right',    39);
     }
 
     function update() {
         if (!_done) {
-            physics.update();
+            physics.update(1/30);
             manager.updateAll();
             requestAnimationFrame(update);
+            draw.drawOSD('❤ '+c.curPlayer.ent.health.toFixed(1)+'🔫 ' + 
+                         c.curPlayer.ent.weapon.ammo+'⚡ '+c.curPlayer.ent.stamina, 'Sans', 12);
         }
         else {
             draw.clearScreen();
@@ -42,30 +48,29 @@ function(physics, level, controls, draw, manager, c, d) {
         physics.clearListeners();
     }
 
-    function spawnXomB(start) {
+    function spawnXomB(object) {
         spawnXomB.numSpawn = spawnXomB.numSpawn || 0;
-        if (!start) {
+        if (object) {
             spawnXomB.numKilled = spawnXomB.numKilled || 0;
             spawnXomB.numKilled += 1;
         }
-        if(spawnXomB.numSpawn < maxSpawn) {
+        if(spawnXomB.numSpawn < maxSpawn || infi) {
             var spawnPoint = level.getSpawn('XomB');
             new c.zombieObject({
                 x: spawnPoint.x,
                 y: spawnPoint.y,
                 w: 10,
                 h: 10,
-                speed: 20,
+                speed: 40,
                 deathTrigger: spawnXomB,
             })
             spawnXomB.numSpawn += 1;
         }
-        else if (spawnXomB.numSpawn == spawnXomB.numKilled) {
+        else if (!infi && spawnXomB.numSpawn == spawnXomB.numKilled) {
             breakItDown();
         }
     }
 
-    sp = spawnXomB;
     function loadPlayer() {
         var spawnPoint = level.getSpawn('Player');
         new c.playerObject({
@@ -73,13 +78,14 @@ function(physics, level, controls, draw, manager, c, d) {
             y: spawnPoint.y,
             w:10,
             h:10,
-            speed: 50,
+            speed: 20,
             deathTrigger: breakItDown,
             weapon: d.testGun,
+            stamina: 400,
+            regen: 1,
         });
-        
-        for (var i = 0; i < 10; i+=1) {
-            spawnXomB(true);
+        for (var i = 0; i < 30; i+=1) {
+            spawnXomB();
         }
     }
 
@@ -91,13 +97,23 @@ function(physics, level, controls, draw, manager, c, d) {
 
     function contactCallbacks() {
         function bulletContact(bullet, object) {
-            bullet.ent._dead = true;
-            if (object['class'] == 'zombie') {
-                console.log('hurt')
+            if (object.type != 'player'){
+                bullet.ent._dead = true;
+            }
+            if (object.type == 'zombie') {
                 object.ent.damage(bullet.ent.hitDamage);
+                object.ent.alert(bullet.ent.pos)
+            }
+            //TODO got's to get GOT
+        }
+        function xomBContact(xomB, object) {
+            if(object.type == 'player') {
+                object.ent.attach(xomB.ent);
+                xomB.ent.suck(object.ent);
             }
         }
-        physics.solveListener('bullet', bulletContact)
+        physics.contactListener('bullet', bulletContact)
+        physics.solveListener('zombie', xomBContact)
     }
 
     function setupGame() {

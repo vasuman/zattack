@@ -11,22 +11,39 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         Shapes = Box2D.Collision.Shapes;
 
     ctListen = new Box2D.Dynamics.b2ContactListener(),
-        ctCallbacks = {},
+        callbacks = {
+            ct: {},
+            sl: {}
+        },
         obstacles= [];
 
+    function solveCallback(contact) {
+        var bodyA = contact.GetFixtureA().GetBody(),
+            bodyB = contact.GetFixtureB().GetBody(),
+            udA = bodyA.GetUserData(),
+            udB = bodyB.GetUserData();
+        if (udA.type in callbacks.sl) {
+            callbacks.sl[udA.type](udA, udB);
+        }
+        if (udB.type in callbacks.sl) {
+            callbacks.sl[udB.type](udB, udA);
+        }
+    }
     function contactCallback(contact) {
         var bodyA = contact.GetFixtureA().GetBody(),
             bodyB = contact.GetFixtureB().GetBody(),
             udA = bodyA.GetUserData(),
             udB = bodyB.GetUserData();
-        if (udA['class'] in ctCallbacks) {
-            ctCallbacks[udA['class']](udA, udB);
+        if (udA.type in callbacks.ct) {
+            callbacks.ct[udA.type](udA, udB);
         }
-        if (udB['class'] in ctCallbacks) {
-            ctCallbacks[udB['class']](udB, udA);
+        if (udB.type in callbacks.ct) {
+            callbacks.ct[udB.type](udB, udA);
         }
     }
+
     ctListen.BeginContact = contactCallback;
+    ctListen.PostSolve = solveCallback;
 
     function init(grav, factor, framerate) {
         _gravity = grav;
@@ -36,8 +53,8 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         world.SetContactListener(ctListen);
     }
 
-    function update() {
-        world.Step(1/_fps, 10, 10);
+    function update(amt) {
+        world.Step(amt, 10, 10);
         world.ClearForces();
     }
 
@@ -53,6 +70,7 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         if (physData.damping) {
             bDef.linearDamping = physData.damping;
         }
+        bDef.isBullet = (physData.bullet) || false;
         var fixDef = new Box2D.Dynamics.b2FixtureDef();
         switch(physData.fixtureType) {
             case 0: fixDef.friction = 0;
@@ -77,11 +95,12 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         if(physData.filterGroup) {
             fixDef.filter.groupIndex = physData.filterGroup;
         }
+        fixDef.isSensor = (physData.sensor) || false;
         var createdBody = world.CreateBody(bDef);
         createdBody.CreateFixture(fixDef);
         if(physData.userData) {
             createdBody.SetUserData({
-                'class':physData.userData,
+                'type':physData.userData,
                 'ent':refObj,
             });
         }
@@ -102,6 +121,29 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         return body;
     }
 
+    function qCallbackWrapper(funct, pos, pow) {
+        return function(fixture) {
+            if (vec.mag(vec.mad(fixture.GetBody().GetPosition(), -1, pos)) < pow) {
+                return funct(fixture.GetBody().GetUserData())
+            } else {
+                return true;
+            }
+        }
+    }
+    
+    function fixAttachBodies(bodyA, bodyB) {
+        j = new Box2D.Dynamics.Joints.b2DistanceJointDef;
+        j.Initialize(bodyA, bodyB, bodyA.GetWorldCenter(), bodyB.GetWorldCenter());
+        world.CreateJoint(j);
+    }
+    function queryBox(point, pow, callback) {
+        var point = vec.sc(point, 1/_scale),
+            qAB = new Box2D.Collision.b2AABB(point),
+            area = vec.make(pow/_scale, pow/_scale);
+        qAB.lowerBound = vec.mad(point, -0.5, area);
+        qAB.upperBound = vec.mad(point, +0.5, area);
+        world.QueryAABB(qCallbackWrapper(callback, point, pow), qAB);
+    }
     function clearWorldObstacles() {
         for(var i = 0; i<obstacles.length; i++) {
             destroyBody(obstacles[i])
@@ -113,8 +155,12 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         world.DestroyBody(physBody); 
     }
 
+    function contactListener(className, callback) {
+        self.callbacks.ct[className] = callback;
+    }
+
     function solveListener(className, callback) {
-        self.ctCallbacks[className] = callback;
+        self.callbacks.sl[className] = callback;
     }
 
     function moveBody(body, vector) {
@@ -134,13 +180,17 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
     }
     
     function clearListeners() {
-        ctCallbacks = {};
+        callbacks = {
+            ct: {},
+            sl: {},
+        };
     }
 
     return {
         init: init,
         addWorldObstacle: addWorldObstacle,
         clearListeners: clearListeners,
+        contactListener: contactListener,
         solveListener: solveListener,
         destroyBody: destroyBody,
         getPosition: getPosition,
@@ -149,7 +199,9 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         update: update,
         makeBody: makeBody,
         applyForce: pushBody,
-        clearWorldObstacles: clearWorldObstacles
+        clearWorldObstacles: clearWorldObstacles,
+        queryBox: queryBox,
+        fixAttachBodies: fixAttachBodies,
     }
 
 });

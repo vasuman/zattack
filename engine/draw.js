@@ -1,4 +1,4 @@
-define(['engine/resources'], function(resource) {
+define(['engine/resources', 'engine/vector'], function(resource, vec) {
     //TODO move this to an appropriate place
     function ImageSection(image, gridSize, gridX, gridY, sizeX, sizeY) {
         this.image = image;
@@ -9,7 +9,8 @@ define(['engine/resources'], function(resource) {
         this.sH = sizeY * gridSize;
     }
 
-    viewport = { x:0, y:0 },
+    var viewport = { x:0, y:0 },
+        ripples = [],
         frame = { 
             width: 0, 
             height: 0  
@@ -40,7 +41,7 @@ define(['engine/resources'], function(resource) {
         subFrame.width = w;
         subFrame.height = h;
     }
-    
+
     function setViewportLimits(minX, maxX, minY, maxY) {
         viewportLimits = {
             minX: minX,
@@ -54,29 +55,85 @@ define(['engine/resources'], function(resource) {
         handle.clearRect(0, 0, frame.width, frame.height);
     }
     
-    function setFont(family, size) {
-       handle.font = size+'pt '+family;
+    function drawOSD(text, family, size) {
+        handle.font = size+'pt '+family;
+        handle.textAlign = 'end';
+        handle.fillText(text, frame.width, size);
     }
 
-    function renderTextScreen(text, pX, pY) {
-        //TODO Draw BG
-        clearScreen();
-        handle.fillText(text, pX, pY);
+    function imageInFrame(imgDat) {
+        return ((imgDat[1] < viewport.x + frame.width) &&
+                (imgDat[1] + imgDat[3]> viewport.x) &&
+                (imgDat[2] < viewport.y + frame.height) &&
+                (imgDat[2] + imgDat[4]> viewport.y));
     }
-    
+
     function drawAll(entities) {
         clearScreen();
         renderBG();
         for(var i=0; i<entities.length; i++) {
             var dDat = entities[i].getDrawData();
-            if (isInFrame(dDat)) {
-                //TODO: Implement sprites!!
-                handle.fillRect(
-                    Math.floor(dDat.x - viewport.x), 
-                    Math.floor(dDat.y - viewport.y), 
-                    dDat.width, dDat.height);
+            if (isInFrame(dDat) && !entities[i].invisible) {
+                if (entities[i].drawImage) {
+                    handle.globalAlpha = (dDat.alpha || 1.0); 
+                    if (dDat.canvas) {
+                        handle.drawImage(dDat.canvas, 
+                            Math.floor(dDat.x - viewport.x), 
+                            Math.floor(dDat.y - viewport.y))
+                    } else {
+                        handle.drawImage(
+                            dDat.image, 
+                            Math.floor(dDat.x - viewport.x), 
+                            Math.floor(dDat.y - viewport.y),
+                            dDat.width, dDat.height,
+                            dDat.sx, dDat.sy,
+                            dDat.width, dDat.height);
+                    }
+                    handle.globalAlpha = 1.0; 
+                } else {
+                    handle.fillRect(
+                        Math.floor(dDat.x - viewport.x), 
+                        Math.floor(dDat.y - viewport.y), 
+                        dDat.width, dDat.height);
+                }
             }
         }
+    }
+
+    function drawRipples() {
+        for(var i = ripples.length-1; i >= 0; i-=1) {
+            ripples[i].stage+=ripples[i].inc;
+            if (ripples[i].stage == ripples[i].end) {
+                ripples.splice(i,1);
+                continue;
+            }
+            drawRipple(ripples[i])
+        }
+    }
+    
+    function offsetCenter(pos) {
+        return {
+            x: pos.x + viewport.x,
+            y: pos.y + viewport.y,
+        }
+    }
+
+    function drawRipple(ripple) {
+        ripple.w = ripple.stage;
+        ripple.h = ripple.stage;
+        if (!isInFrame(ripple)) {
+            return;
+        }
+        // handle.fi
+    }
+
+    function addRipple(pos, inc, end) {
+        ripples.append({
+            pos: pos,
+            stage: 1,
+            inc: inc,
+            end: end,
+        })
     }
     
     function _preDraw(level_url, callback) {
@@ -105,7 +162,7 @@ define(['engine/resources'], function(resource) {
                     }
                     var x = j*gridW,
                         y = i*gridH,
-                    tile = getTile(level, layer.data[m]),
+                        tile = getTile(level, layer.data[m]),
                     // Canvas ID
                     c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX;
                     canvii[c_id].getContext('2d').drawImage(
@@ -186,13 +243,11 @@ define(['engine/resources'], function(resource) {
         init: initCanvas,
         setCanvasSegmentSize: setCanvasSegmentSize,
         setViewportLimits: setViewportLimits,
-        renderTextScreen: renderTextScreen,
         clearScreen: clearScreen,
         drawAll: drawAll,
         loadLevelAssets: loadLevelAssets,
         snapViewport: snapViewport,
-        setFont: setFont,
+        drawOSD: drawOSD,
+        offsetCenter: offsetCenter,
     }
 });
-
-

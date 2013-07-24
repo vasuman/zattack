@@ -1,6 +1,8 @@
 define([], function () {
     json_data = {}, 
-        images = {};
+        images = {},
+        canvas = {};
+
     function XHRGet(link_url, callback) {
         var xR = new XMLHttpRequest;
         xR.open('GET', link_url, true);
@@ -8,6 +10,7 @@ define([], function () {
         xR.onload = callback;
         xR.send();
     }
+
     function loadImages(image_names, callback) {
         var num_img = image_names.length;
         function cCb() {
@@ -26,6 +29,7 @@ define([], function () {
             }
         }
     }
+
     function loadJSON(json_list, callback) {
         var num_json = json_list.length;
         function cCb() {
@@ -42,10 +46,17 @@ define([], function () {
             }
         }
     }
+
+    function registerCanvas(name, resource) {
+        canvas[name] = resource;
+    }
+
     return {
         images: images,
         json_data: json_data,
+        canvas: canvas,
         loadJSON: loadJSON,
-        loadImages: loadImages
+        loadImages: loadImages,
+        registerCanvas: registerCanvas,
     };
 });

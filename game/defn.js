@@ -10,9 +10,18 @@ define(['game/ent'], function(e) {
     
     var testGun = new e.abstractWeapon({
         name: 'testGun',
-        cooldown: 5,
-        bullet: testBullet
-    })
+        cooldown: 20,
+        ammo: 800,
+        bulletData: {
+            timeout: 500,
+            w: 5,
+            h: 5,
+            speed: 500,
+            hitDamage: 50,
+        },
+        sound: 100,
+    });
+
 
     return {
         testGun: testGun,
