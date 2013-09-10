@@ -139,7 +139,7 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
     function queryBox(point, pow, callback) {
         var point = vec.sc(point, 1/_scale),
             qAB = new Box2D.Collision.b2AABB(point),
-            area = vec.make(2*pow/_scale, 2*pow/_scale);
+            area = vec.make(2*pow/_scale);
         qAB.lowerBound = vec.mad(point, -0.5, area);
         qAB.upperBound = vec.mad(point, +0.5, area);
         world.QueryAABB(qCallbackWrapper(callback, point, pow), qAB);

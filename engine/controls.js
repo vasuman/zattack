@@ -1,14 +1,28 @@
 define([], function() {
     var self = this,
     mouseQueue = false,
-    lastMouse = {
+    mouse = {
         pos: {},
-        press: false,
-        click: false,
+        0: false,
+        1: false,
+        2: false,
     },
+    queueEvents = {},
     eventMap = {},
     keyState = { null: false };
     
+    function queue(event_name) {
+        queueEvents[event_name] = true;
+    }
+
+    function poll(event_name) {
+        return queueEvents[event_name];
+    }
+
+    function reset() {
+        queueEvents = {};
+    }
+
     function listenForKeyboardEvents (element) {
         function keyUpCallback (ev) {
             keyState[ev.keyCode] = false;
@@ -29,22 +43,15 @@ define([], function() {
                 y: el_rect.top,
             };
         function mouseDown (ev) {
-            lastMouse.pos = {
-                x: ev.clientX - el_pos.x,
-                y: ev.clientY - el_pos.y,
-            }
-            lastMouse.press = true;
+            mouse[ev.button] = true;
+            queue('mouse-down');
         }
         function mouseUp (ev) {
-            lastMouse.pos = {
-                x: ev.clientX - el_pos.x,
-                y: ev.clientY - el_pos.y,
-            }
-            lastMouse.press = false;
-            lastMouse.click = true;
+            mouse[ev.button] = false;
+            queue('mouse-up');
         }
         function mouseMove (ev) {
-            lastMouse.pos = {
+            mouse.pos = {
                 x: ev.clientX - el_pos.x,
                 y: ev.clientY - el_pos.y,
             }
@@ -54,23 +61,12 @@ define([], function() {
         element.addEventListener('mouseup', mouseUp);
     }
 
-    function getMouseClickPos() {
-         if (lastMouse.click) {
-            lastMouse.click = false;
-            return lastMouse.pos;
-         }
-         else {
-            return false;
-         }
+    function mousePosition() {
+        return mouse.pos;
     }
-    
-    function getMousePress() {
-        if (lastMouse.press) {
-            return lastMouse.pos;
-         }
-         else {
-            return false;
-         }
+
+    function mousePressed(button) {
+        return mouse[button];
     }
 
     function registerEvent (ev_name, key) {
@@ -103,7 +99,9 @@ define([], function() {
         unregisterEvent: unregisterEvent,
         ev: qEv,
         tap: tap,
-        getMousePress: getMousePress,
-        getMouseClickPos: getMouseClickPos,
+        poll: poll,
+        reset: reset,
+        mousePosition: mousePosition,
+        mousePressed: mousePressed,
     }
 });

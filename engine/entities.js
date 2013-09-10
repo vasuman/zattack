@@ -1,7 +1,8 @@
 define(['engine/physics', 'engine/manager', 'engine/resources'], function(physics, manager, resources) {
     var globalEntityIndex = 0;
     function baseObject (objDat) {
-        this.skipUpdate = objDat.noUpdate;
+        this.$ = {};
+        this.def = objDat
         this.pos = {
             x: objDat.x, 
             y: objDat.y
@@ -11,19 +12,15 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
             h: objDat.h
         }
         this.entID = globalEntityIndex++;
-        if (objDat.hide) {
-            this.visible = true;
-        }
-        this.deathTrigger = objDat.deathTrigger;
         manager.registerEntity(this);
-        this._dead = false;
+        this.$.dead = false;
     }
 
     baseObject.prototype.update = function () {};
 
     baseObject.prototype.cleanup = function() {
-        if(this.deathTrigger) {
-            this.deathTrigger();
+        if(this.def.deathTrigger) {
+            this.def.deathTrigger();
         }
     }
 
@@ -39,34 +36,30 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
 
     baseObject.prototype.updateChain = function () {
         for(var i = this.__proto__; i.update; i = i.__proto__) {
-            i.update.call(this);
+            i.update.apply(this, arguments);
         }
     }
 
     function animation (animDefn) {
         baseObject.call(this, animDefn);
-        this.anim = {
-            frame: 0,
-            idx: 0,
-            reel: animDefn.reel
-        }
-        this.loop = animDefn.loop;
+        this.$.anim = {};
+        this.$.anim.frame = 0;
+        this.$.anim.idx = 0;
         this.drawImage = true;
-        console.log(this.anim);
     }
 
     animation.prototype.__proto__ = baseObject.prototype;
 
     animation.prototype.getDrawData = function() {
-        this.anim.frame+=1;
-        if (this.anim.frame > this.anim.reel[this.anim.idx].n) {
-            if (!this.loop && this.anim.idx == this.anim.reel.length-1) {
+        this.$.anim.frame+=1;
+        if (this.$.anim.frame > this.def.reel[this.$.anim.idx].n) {
+            if (!this.def.loop && this.$.anim.idx == this.def.reel.length-1) {
                 this._dead = true;
             }
-            this.anim.idx = (this.anim.idx + 1) % this.anim.reel.length;
-            this.anim.frame = 0;
+            this.$.anim.idx = (this.$.anim.idx + 1) % this.def.reel.length;
+            this.$.anim.frame = 0;
         }
-        var imgDat = this.anim.reel[this.anim.idx].image;
+        var imgDat = this.def.reel[this.$.anim.idx].image;
         if (imgDat.canvas) {
             var canvas = resources.canvas[imgDat.name];
             return {
@@ -92,11 +85,9 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
     }
 
     animation.prototype.loadReel = function(reel) {
-        this.anim = {
-            frame: 0,
-            idx: 0,
-            reel: reel
-        }
+        this.$.anim.frame = 0;
+        this.$.anim.idx = 0;
+        this.def.reel = reel;
     }
 
     
@@ -113,14 +104,14 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
 
     physicalObject.prototype.update=function () {
         //Update positions from Box2D
-        if (!this.skipUpdate) {
+        if (!this.def.skipUpdate) {
             this.pos = physics.getPosition(this.pBody); 
         }
     }
 
     physicalObject.prototype.cleanup = function() {
-        if(this.deathTrigger) {
-            this.deathTrigger(this);
+        if(this.def.deathTrigger) {
+            this.def.deathTrigger(this);
         }
         physics.destroyBody(this.pBody);
     }

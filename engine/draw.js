@@ -91,6 +91,11 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
                     }
                     handle.globalAlpha = 1.0; 
                 } else {
+                    if(entities[i].pBody.GetUserData().type == 'player') {
+                        handle.fillStyle = 'red';
+                    } else {
+                        handle.fillStyle = 'black';
+                    }
                     handle.fillRect(
                         Math.floor(dDat.x - viewport.x), 
                         Math.floor(dDat.y - viewport.y), 

@@ -16,17 +16,17 @@ define(['engine/draw', 'engine/physics'], function (draw, physics) {
         entities = [];
     }
 
-    function updateAll() {
+    function updateAll(lapse) {
         var killAfter = [];
         for(var i = 0; i < entities.length; i+=1) {
-            if (entities[i]._dead) {
+            if (entities[i].$.dead) {
                 killAfter.push(i);
                 continue;
             }
-            if (entities[i].noUpdate) {
+            if (entities[i].skipUpdate) {
                 continue;
             }
-            entities[i].updateChain();
+            entities[i].updateChain(lapse);
         }
         killItems(killAfter);
         draw.drawAll(entities);

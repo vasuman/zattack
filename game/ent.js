@@ -16,9 +16,8 @@ function(e, physics, controls, draw, vec, resources) {
 
     //TODO implement
     function mouseFire() {
-        var mouse = controls.getMousePress()
-        if (mouse) {
-            return vec.mad(draw.offsetCenter(mouse), -1, curPlayer.ent.pos);
+        if (controls.poll('mouse-up')) {
+            return vec.mad(draw.offsetCenter(controls.mousePosition()), -1, ref.player.pos);
         }
         return {
             x: 0,
@@ -28,13 +27,8 @@ function(e, physics, controls, draw, vec, resources) {
 
     //TODO allow change scheme
     var firingVector = mouseFire,
-        curPlayer = {
-            ent: {
-                health: -1,
-                weapon: {
-                    ammo: -1
-                }
-            },
+        ref = {
+            player: null,
         };
 
     function useMouse(s) {
@@ -43,7 +37,7 @@ function(e, physics, controls, draw, vec, resources) {
 
     function mortalObject (mortalDefn) {
         e.physicalObject.call(this, mortalDefn);
-        this.health = mortalDefn.health || 100;
+        this.$.health = mortalDefn.health || 100;
     }
 
     mortalObject.prototype.__proto__ = e.physicalObject.prototype;
@@ -51,62 +45,62 @@ function(e, physics, controls, draw, vec, resources) {
     mortalObject.prototype.update = function() {};
 
     mortalObject.prototype.damage = function(amt) {
-        this.health -= amt;
-        if (this.health<0) {
-            this._dead = true;
+        this.$.health -= amt;
+        if (this.$.health<0) {
+            this.$.dead = true;
         }
     }
 
     function playerObject (playerDefn) {
-        if (!curPlayer.ent._dead) {
-            curPlayer.ent._dead = true;
+        if (ref.player && !ref.player.$.dead) {
+            ref.player.$.dead = true;
         }
         playerDefn.userData = 'player';
         mortalObject.call(this, playerDefn);
-        this.speed = playerDefn.speed;
-        this.maxStamina = playerDefn.stamina;
-        this.weapon = playerDefn.weapon;
-        this.stamina = this.maxStamina;
-        this.runInterval = 0;
-        this.sound = playerDefn.sound;
-        this.rippleData = {
-            radius: this.sound,
+        this.$.stamina = this.def.stamina;
+        this.$.interval = 0;
+        this.$.ripple = {
+            radius: this.def.sound,
             timeout: 50,
-            canvas: makeRipple(this.sound),
+            canvas: drawRipple(this.def.sound),
         }
-        this.leeches = [];
-        curPlayer.ent = this;
+        this.$.leech = [];
+        ref.player = this;
     };
 
     playerObject.prototype.__proto__ = mortalObject.prototype;
 
     playerObject.prototype.attach = function (xomB) {
-        physics.fixAttachBodies(this.pBody, xomB.pBody);
-        this.leeches.push(xomB);
+        physics.fixAttachBodies(this.pBody, xomB.pBody, 10);
+        this.$.leech.push(xomB);
     }
 
-    playerObject.prototype.update=function () {
+    playerObject.prototype.bulletTime = function() {
+    }
+
+    playerObject.prototype.update=function (lapse) {
+        this.$.interval += lapse;
         var ran = false;
-        this.runInterval += 1;
         //VIEWPORT CENTER
         draw.snapViewport(this.pos)
         //WEAPON UPDATE
-        this.weapon.update();
+        this.def.weapon.update();
         //MOVEMENT
         var mVec = getPlayerMovement(),
-            scale = this.speed;
-        if ((mVec.x || mVec.y)) {
+            scale = this.def.speed;
+        if (mVec.x || mVec.y) {
+            //RUN
             if(controls.ev('run')) {
-                if (!this.tired) {
-                    this.stamina -= 1;
-                    scale*=3;
-                    if(this.runInterval > 20) {
-                        this.rippleData.x = this.pos.x;
-                        this.rippleData.y = this.pos.y;
-                        soundSource(this.pos, this.sound);
-                        new ripple(this.rippleData);
-                        this.runInterval = 0;
+                if (!this.$.tired) {
+                    // Make some noise
+                    if(this.$.interval > 20) {
+                        this.$.ripple.x = this.pos.x;
+                        this.$.ripple.y = this.pos.y;
+                        new ripple(this.$.ripple);
+                        this.$.interval = 0;
                     }
+                    this.$.stamina -= lapse;
+                    scale*=3;
                     ran = true;
                 }
             }
@@ -115,36 +109,36 @@ function(e, physics, controls, draw, vec, resources) {
                 scale/=Math.SQRT2;
             }
         }
-        if(this.stamina <= 0) {
-            this.tired = true;
+        if(this.$.stamina <= 0) {
+            this.$.tired = true;
         }
         if(!ran) {
-            this.stamina = Math.min(this.maxStamina, this.stamina+1);
-            if (this.stamina > 120) {
-                this.tired = false;
+            this.$.stamina = Math.min(this.def.stamina, this.$.stamina+lapse);
+            if (this.$.stamina > 120) {
+                this.$.tired = false;
             }
         }
         physics.moveBody(this.pBody, vec.sc(mVec, scale));
         //FIRING
         var fVec = vec.norm(firingVector());
         if (fVec.x || fVec.y ) {
-            //TODO emit sound
+            this.$.interval = 0;
             var curPos = vec.mad(this.pos, this.dim.w, fVec);
             var curVel = physics.getVelocity(this.pBody);
-            this.weapon.fire({
+            this.def.weapon.fire({
                 pos: curPos,
                 vel: curVel,
                 dir: fVec,
             });
         } 
         //LEECH
-        for (var i = this.leeches.length - 1; i >= 0; i-=1) {
-            var leech = this.leeches[i];
-            if(leech._dead) {
-                this.leeches.splice(i,1);
+        for (var i = this.$.leech.length - 1; i >= 0; i-=1) {
+            var leech = this.$.leech[i];
+            if(leech.$.dead) {
+                this.$.leech.splice(i,1);
             } else {
                 if (controls.tap('melee')) {
-                    leech.damage(33);
+                    leech.damage(this.def.melee);
                 }
             }
         }
@@ -152,84 +146,83 @@ function(e, physics, controls, draw, vec, resources) {
 
     function bulletObject (bulletData) {
         bulletData.userData = 'bullet';
-        bulletData.sensor = true;
+        bulletData.x = bulletData.vec.pos.x;
+        bulletData.y = bulletData.vec.pos.y;
         bulletData.bullet = true;
         e.physicalObject.call(this, bulletData);
-        this.timeout = bulletData.timeout;
+        this.$.timeout = this.def.timeout;
         physics.moveBody(this.pBody, {
-            x: bulletData.dx*bulletData.speed+bulletData.sx, 
-            y: bulletData.dy*bulletData.speed+bulletData.sy
+            x:  bulletData.vec.dir.x*
+                bulletData.speed+bulletData.vec.vel.x, 
+            y:  bulletData.vec.dir.y*
+                bulletData.speed+bulletData.vec.vel.y
         });
-        this.hitDamage = bulletData.hitDamage;
     }
 
     bulletObject.prototype.__proto__ = e.physicalObject.prototype;
 
     bulletObject.prototype.update = function() {
-        if (!--this.timeout) {
-            this._dead = true;
+        if (this.$.timeout < 0) {
+            this.$.dead = true;
         }
     }
 
     function zombieObject (zombieData) {
         zombieData.userData = 'zombie';
         mortalObject.call(this, zombieData);
-        this.speed = zombieData.speed;
-        this.lastSound = null;
         /* States:
          *     0 - move random
          *     1 - alerted
          */
-         this._state = 0;
-         this.timeout = 0;
-         this.suckDamage = zombieData.damage;
-         this.target = {
+         this.$.state = 0;
+         this.$.timeout = 0;
+         this.$.target = {
             step: -1,
          };
     }
 
     zombieObject.prototype.__proto__ = mortalObject.prototype;
 
-    zombieObject.prototype.update = function () {
+    zombieObject.prototype.update = function (lapse) {
         //TODO again...
-        if (this._state == 0) {
-            this.timeout -= 1;
-            if(this.timeout <= 0) {
+        if (this.$.state == 0) {
+            this.$.timeout -= lapse;
+            if(this.$.timeout <= 0) {
                 physics.moveBody(this.pBody, vec.eq({
                     x: Math.random() - 0.5,
                     y: Math.random() - 0.5,
-                }, this.speed))
-                this.timeout = 90 + Math.random()*90;
+                }, this.def.speed))
+                this.$.timeout = 90 + Math.random()*90;
             }
         }
-        else if (this._state == 1) {
-            var difV = vec.mad(this.target.pos, -1, this.pos),
+        else if (this.$.state == 1) {
+            var difV = vec.mad(this.$.target.pos, -1, this.pos),
                 m = vec.mag(difV);
-            if (m < this.dim.w*1.2) {
-                this._state = 0;
-            } else {
-                physics.moveBody(this.pBody, vec.eq(difV, this.speed*2));
-            }
+            if (m < this.dim.w*2) {
+                this.$.state = 0;
+            } 
         }
-        else if (this._state == -1) {
-            this.pl.damage(this.suckDamage);
+        else if (this.$.state == -1) {
+            this.$.source.damage(this.def.damage);
         }
     }
 
     zombieObject.prototype.alert = function(pos) {
-        if (this._state != -1) {
-            this._state = 1;
-            this.target.pos = pos;
+        if (this.$.state != -1) {
+            this.$.state = 1;
+            this.$.target.pos = pos;
+            var difV = vec.mad(this.$.target.pos, -1, this.pos);
+            physics.moveBody(this.pBody, vec.eq(difV, this.def.speed*2));
         }
     }
 
-    zombieObject.prototype.suck = function(pl) {
-        this._state = -1;
-        this.pl = pl;
+    zombieObject.prototype.suck = function(src) {
+        this.$.state = -1;
+        this.$.source = src;
     }
 
 
-    function makeRipple(radius) {
+    function drawRipple(radius) {
         var oc = document.createElement('canvas'),
             hd = oc.getContext('2d');
             gr = null;
@@ -245,7 +238,7 @@ function(e, physics, controls, draw, vec, resources) {
         hd.closePath();
         hd.beginPath();
         hd.arc(radius, radius, 10, 0, 2 * Math.PI, false);
-        hd.fillStyle = 'rgba(170,0,0,0.5)';
+        hd.fillStyle = 'rgba(255,255,255,0.08)';
         hd.fill();
         hd.closePath();
         var name = 'ripple-'+radius;
@@ -257,73 +250,66 @@ function(e, physics, controls, draw, vec, resources) {
         rDat.loop = true;
         rDat.w = rDat.radius;
         rDat.h = rDat.radius;
-        this.cImg = {
+        rDat.reel = [{
             image: {
                 name: rDat.canvas,
                 canvas: true
             },
             n: 1
-        }
-        rDat.reel = [this.cImg]
+        }];
         e.animation.call(this, rDat);
-        this.rCanvas = resources.canvas[rDat.canvas];
-        this.timeout = rDat.timeout;
-        this.count = 0;
-        m = this;
+        this.$.count = 0;
+        soundSource(this.pos, rDat.radius)
     }
 
     ripple.prototype.__proto__ = e.animation.prototype
 
-    ripple.prototype.update = function() {
-        this.count += 1;
-        this.cImg.image.alpha = 1-this.count/this.timeout;
-        if (this.count >= this.timeout-1) {
-            this._dead = true;
+    ripple.prototype.update = function(lapse) {
+        this.$.count += lapse;
+        this.def.reel[0].image.alpha = 1-this.$.count/this.def.timeout;
+        if (this.$.count >= this.def.timeout-1) {
+            this.$.dead = true;
         }
+    }
+
+    function sensorObject(sensDat) {
+        
     }
 
     // Abstract objects are glorified containers
     function abstractWeapon(weaponData) {
-        this.name = weaponData.name;
-        this.cooldown = weaponData.cooldown;
-        this.blockFire = 0;
-        this.bulletData = weaponData.bulletData;
-        this.ammo = weaponData.ammo;
-        this.sound = weaponData.sound;
-        this.rippleData = {
+        this.def = weaponData;
+        this.$ = {};
+        this.def.ripple = {
             radius: weaponData.sound,
             timeout: 35,
-            canvas: makeRipple(weaponData.sound),
+            canvas: drawRipple(weaponData.sound),
         }
+        this.$.ammo = this.def.ammo;
+        this.$.block = 0;
     }
 
     abstractWeapon.prototype.fire = function(vecDat) {
-        if(this.blockFire > 0) {
+        if(this.$.block > 0) {
             return;
         }
-        if (this.ammo <= 0) {
+        if (this.$.ammo <= 0) {
             //CLICK
             return;
         }
-        this.blockFire = this.cooldown;
-        this.ammo-=1;
+        this.$.block = this.def.cooldown;
+        this.$.ammo-=1;
         // DIRTY initializations!
-        this.bulletData.sx = vecDat.vel.x;
-        this.bulletData.sy = vecDat.vel.y;
-        this.bulletData.x = vecDat.pos.x;
-        this.bulletData.y = vecDat.pos.y;
-        this.bulletData.dx = vecDat.dir.x;
-        this.bulletData.dy = vecDat.dir.y;
-        this.rippleData.x = vecDat.pos.x;
-        this.rippleData.y = vecDat.pos.y;
-        new ripple(this.rippleData);
-        soundSource(vecDat.pos, this.sound);
-        return new bulletObject(this.bulletData);
+        this.def.ripple.x = vecDat.pos.x;
+        this.def.ripple.y = vecDat.pos.y;
+        new ripple(this.def.ripple);
+        this.def.bullet.vec = vecDat
+        new bulletObject(this.def.bullet);
     }
 
     abstractWeapon.prototype.update = function() {
-        if(this.blockFire > 0) {
-            this.blockFire--;
+        if (this.$.block > 0) {
+            this.$.block -= 1;
         }
     }
 
@@ -341,17 +327,11 @@ function(e, physics, controls, draw, vec, resources) {
         physics.queryBox(position, pow, qCback);
     }
 
-    function powerUpObject(powerUpData) {
-        var pos = level.getSpawn('powerup');
-        powerUpData.x = pos.x,
-        powerUpData.y = pos.y;
-    }
-
     return {
         playerObject: playerObject,
         abstractWeapon: abstractWeapon,
         bulletObject: bulletObject,
         zombieObject: zombieObject,
-        curPlayer: curPlayer,
+        ref: ref,
     }
 });

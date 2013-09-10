@@ -12,10 +12,10 @@ define([], function() {
     }
 
     return {
-        make: function(x, y) {
+        make: function(c) {
             return {
-                x: x,
-                y: y
+                x: c,
+                y: c
             }
         },
         mad: function(va, fct, vb) {
