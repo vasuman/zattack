@@ -128,4 +128,4 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
         physicalObject: physicalObject,
         animation: animation,
     }
-})
+});

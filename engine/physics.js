@@ -199,6 +199,7 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         getPosition: getPosition,
         getVelocity: getVelocity,
         moveBody: moveBody,
+        pushBody: pushBody,
         update: update,
         makeBody: makeBody,
         applyForce: pushBody,

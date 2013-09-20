@@ -1,15 +1,18 @@
 require(['engine/resources','engine/physics', 'engine/level', 'engine/controls', 'engine/draw', 'engine/manager', 'game/ent', 'game/defn'], 
 function(res, physics, level, controls, draw, manager, c, d) {
-    var _done = false,
-        maxSpawn = 10,
-        infi = true,
-        time = {
-            lapse: 1/30,
-            min: 1/120,
-            max: 1/30,
-            acc: 1/200,
-        },
-        zombies = [];
+    var _state = 0,
+        /* 0: start screen
+         * 1: game
+         * 2: score page */
+    maxSpawn = 10,
+    infi = true,
+    time = {
+        lapse: 1/40,
+        min: 1/120,
+        max: 1/40,
+        acc: 1/200,
+    },
+    zombies = [];
 
     var canvas = document.getElementById('game-canvas');
 
@@ -34,7 +37,7 @@ function(res, physics, level, controls, draw, manager, c, d) {
             ammo = c.ref.player.def.weapon.$.ammo.toFixed(1),
             stamina = c.ref.player.$.stamina.toFixed(1);
             draw.drawOSD('❤ '+health+'🔫 ' +ammo+'⚡ '+stamina, 'Sans', 12);
-            if (controls.mousePressed(0)) {
+            if (c.ref.player.bulletTime()) {
                 time.lapse = Math.max(time.min, time.lapse-time.acc);
             } else {
                 time.lapse = Math.min(time.max, time.lapse+time.acc);
@@ -42,17 +45,31 @@ function(res, physics, level, controls, draw, manager, c, d) {
         }
     }
 
+    function finalScoreScreen(handle) {
+        
+    }
+
     function update() {
-        if (!_done) {
+        if (_state == 1) {
             physics.update(time.lapse);
             manager.updateAll(time.lapse/time.max);
             gameUpdate();
             controls.reset();
-            requestAnimationFrame(update);
-        }
-        else {
+        } else if (_state == 0) {
             draw.clearScreen();
+            var hd = draw.handle;
+        } else {
+            if(controls.ev('restart')) {
+                reset();
+            }
+            draw.clearScreen();
+            var hd = draw.core.handle;
+            hd.textAlign = 'center';
+            hd.font = '22pt Sans';
+            hd.fillText('Score is:'+(spawnXomB.numKilled || 0), draw.core.frame.width/2,
+                        draw.core.frame.height/2)
         }
+        requestAnimationFrame(update);
     }
 
     function reset() {
@@ -60,10 +77,9 @@ function(res, physics, level, controls, draw, manager, c, d) {
     }
 
     function breakItDown() {
-        _done = true;
+        console.log('player dead');
+        _state = 2;
         manager.clearAll();
-        physics.clearWorldObstacles();
-        physics.clearListeners();
     }
 
     function spawnXomB(object) {
@@ -72,38 +88,36 @@ function(res, physics, level, controls, draw, manager, c, d) {
             spawnXomB.numKilled = spawnXomB.numKilled || 0;
             spawnXomB.numKilled += 1;
         }
-        if(spawnXomB.numSpawn < maxSpawn || infi) {
+        if(_state == 1){
             var spawnPoint = level.getSpawn('XomB');
             new c.zombieObject({
                 x: spawnPoint.x,
                 y: spawnPoint.y,
-                w: 32,
-                h: 32,
+                w: 16,
+                h: 16,
                 speed: 40,
-                damage: 0,
+                damage: .3,
                 normalAnim: d.okB,
                 suckAnim: d.madB,
                 deathTrigger: spawnXomB,
-            })
-            spawnXomB.numSpawn += 1;
+            });
         }
-        else if (!infi && spawnXomB.numSpawn == spawnXomB.numKilled) {
-            breakItDown();
-        }
+        spawnXomB.numSpawn += 1;
     }
 
     function loadEntities() {
-        var spawnPoint = level.getSpawn('Player');
+        var spawnPoint = level.getSpawn('player');
         new c.playerObject({
             x: spawnPoint.x,
             y: spawnPoint.y,
-            w:10,
-            h:10,
-            speed: 35,
+            w: 8,
+            h: 8,
+            speed: 5,
             deathTrigger: breakItDown,
             sound: 100,
-            weapon: d.testGun,
+            weapon: c.silencePistol,
             stamina: 400,
+            damping: 2,
             melee: 100,
         });
         for (var i = 0; i < 30; i+=1) {
@@ -112,7 +126,7 @@ function(res, physics, level, controls, draw, manager, c, d) {
     }
 
     function startLevel(level_json, cback) {
-        _done = false;
+        _state = 0;
         level.loadLevel(level_json, cback);
         update();
     }
@@ -143,15 +157,18 @@ function(res, physics, level, controls, draw, manager, c, d) {
         physics.contactListener('bullet', bulletContact)
         physics.contactListener('zombie', xomBContact)
     }
-
     function initManager() {
         draw.init(canvas, 800, 400);
         draw.setCanvasSegmentSize(600, 300);
+    }
+    function startGame() {
         physics.init(0, 25, 60);
         setupControls(window);
         contactCallbacks();
         startLevel('data/level_n.json', loadEntities);
+        _state = 1;
     }
-
     initManager();
+    startGame();
+    update();
 })

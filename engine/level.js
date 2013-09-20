@@ -71,7 +71,7 @@ define(['engine/physics', 'engine/resources', 'engine/draw'],
                     h: object.height
                 };
                 physics.addWorldObstacle(dat);
-                gridObstacle(object);
+                // gridObstacle(object);
             }
         }
 

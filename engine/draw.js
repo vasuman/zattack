@@ -20,14 +20,15 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         },
         //Plural of canvas
         canvii = [],
-        f_can = null,
+        f_can = [],
         viewportLimits = {
             minX: 0,
             maxX: 0,
             minY: 0,
             maxY: 0,
         },
-        handle = null;
+        handle = null,
+        core = {};
 
     function initCanvas(canvas, w, h) {
         handle = canvas.getContext('2d');
@@ -35,6 +36,8 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         frame.height = h;
         canvas.width = w;
         canvas.height = h;
+        core.handle = handle;
+        core.frame = frame;
     }
 
     function setCanvasSegmentSize(w, h) {
@@ -75,7 +78,7 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
 
     function drawAll(entities) {
         clearScreen();
-        renderBG();
+        renderG(false);
         for(var i=0; i<entities.length; i++) {
             var dDat = entities[i].getDrawData();
             if (isInFrame(dDat) && !entities[i].invisible) {
@@ -97,9 +100,7 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
                 }
             }
         }
-        if(f_can) {
-            handle.drawImage(f_can, -~~viewport.x, -~~viewport.y)
-        }
+        renderG(true);
     }
 
     function offsetCenter(pos) {
@@ -115,11 +116,15 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         gridH = level.tileheight,
         numX = Math.ceil((level.width*gridW)/subFrame.width), 
         numY = Math.ceil((level.height*gridH)/subFrame.height);
-        canvii = [];
-        f_can = document.createElement('canvas');
-        f_can.height = level.height*gridH;
-        f_can.width = level.width*gridW;
+        canvii = [], f_can = [];
         for(var i = 0; i < numX*numY; i+=1) {
+            // Foreground
+            f_can[i] = document.createElement('canvas');
+            f_can[i].width =  subFrame.width + gridW;
+            f_can[i].height = subFrame.height + gridH;
+            f_can[i].x = (i % numX)*subFrame.width;
+            f_can[i].y = Math.floor(i/numX)*subFrame.height;
+            // Background
             canvii[i] = document.createElement('canvas');
             canvii[i].width =  subFrame.width + gridW;
             canvii[i].height = subFrame.height + gridH;
@@ -137,24 +142,18 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
                     }
                     var x = j*gridW,
                     y = i*gridH,
-                    tile = getTile(level, layer.data[m]);
-                    if(!layer.properties.foreground){
-                        // Canvas ID
-                        var c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX;
-                        canvii[c_id].getContext('2d').drawImage(
-                            resource.images[tile.image],
-                            tile.sx, tile.sy,
-                            tile.sw, tile.sh,
-                            x - canvii[c_id].x,
-                            y - canvii[c_id].y,
-                            gridW, gridH
-                        );
-                    } else {
-                        f_can.getContext('2d').drawImage(
-                            resource.images[tile.image],
-                            tile.sx, tile.sy, tile.sw, tile.sh,
-                            x, y, gridW, gridH)
-                    }
+                    tile = getTile(level, layer.data[m]),
+                    // Canvas ID
+                    c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX,
+                    zidx = (layer.properties.foreground)? f_can:canvii;
+                    zidx[c_id].getContext('2d').drawImage(
+                        resource.images[tile.image],
+                        tile.sx, tile.sy,
+                        tile.sw, tile.sh,
+                        x - canvii[c_id].x,
+                        y - canvii[c_id].y,
+                        gridW, gridH
+                    );
                 }
             }
         }
@@ -197,21 +196,20 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         }(_preDraw, map_url, callback)));
     }
 
-    function renderBG() {
-        for(var i = 0; i < canvii.length; i+=1) {
-            if(isInFrame(canvii[i])) {
-                handle.drawImage(canvii[i],
-                    canvii[i].x - viewport.x,
-                    canvii[i].y - viewport.y
-                );
+    function renderG(bg) {
+        var zidx = (bg)?f_can:canvii;
+        for(var i = 0; i < zidx.length; i+=1) {
+            if(isInFrame(zidx[i])) {
+                handle.drawImage(zidx[i],
+                    zidx[i].x - viewport.x, zidx[i].y - viewport.y);
             }
         }
     }
     
     function snapViewport(pos) {
         //Two lines!! Muah is GENIUS
-        viewport.x = Math.floor(Math.min(Math.max(viewportLimits.minX, pos.x-frame.width/2), viewportLimits.maxX));
-        viewport.y = Math.floor(Math.min(Math.max(viewportLimits.minY, pos.y-frame.height/2), viewportLimits.maxY));
+        viewport.x = ~~(Math.min(Math.max(viewportLimits.minX, pos.x-frame.width/2), viewportLimits.maxX)/5*5);
+        viewport.y = ~~(Math.min(Math.max(viewportLimits.minY, pos.y-frame.height/2), viewportLimits.maxY)/5*5);
     }
     
     function isInFrame(pDat) {
@@ -229,6 +227,7 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         drawAll: drawAll,
         loadLevelAssets: loadLevelAssets,
         snapViewport: snapViewport,
+        core: core,
         drawOSD: drawOSD,
         offsetCenter: offsetCenter,
     }

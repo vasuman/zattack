@@ -16,13 +16,7 @@ function(e, physics, controls, draw, vec, resources) {
 
     //TODO implement
     function mouseFire() {
-        if (controls.poll('mouse-up')) {
             return vec.mad(draw.offsetCenter(controls.mousePosition()), -1, ref.player.pos);
-        }
-        return {
-            x: 0,
-            y: 0
-        }
     }
 
     //TODO allow change scheme
@@ -76,7 +70,10 @@ function(e, physics, controls, draw, vec, resources) {
     }
 
     playerObject.prototype.bulletTime = function() {
-        return true;
+        if(this.def.weapon.bTAction && this.def.weapon.bTAction()) {
+            return true;
+        }
+        return false;
     }
 
     playerObject.prototype.update=function (lapse) {
@@ -115,14 +112,14 @@ function(e, physics, controls, draw, vec, resources) {
         }
         if(!ran) {
             this.$.stamina = Math.min(this.def.stamina, this.$.stamina+lapse);
-            if (this.$.stamina > 120) {
+            if (this.$.stamina > this.def.stamina/3) {
                 this.$.tired = false;
             }
         }
-        physics.moveBody(this.pBody, vec.sc(mVec, scale));
+        physics.pushBody(this.pBody, vec.sc(mVec, scale));
         //FIRING
-        var fVec = vec.norm(firingVector());
-        if (fVec.x || fVec.y ) {
+        if (this.def.weapon.fireAction()) {
+            var fVec = vec.norm(firingVector());
             this.$.interval = 0;
             var curPos = vec.mad(this.pos, this.dim.w, fVec);
             var curVel = physics.getVelocity(this.pBody);
@@ -187,6 +184,10 @@ function(e, physics, controls, draw, vec, resources) {
 
     zombieObject.prototype.update = function (lapse) {
         //TODO again...
+        if(this.$.qVec) {
+            physics.moveBody(this.pBody, this.$.qVec);
+            this.$.qVec = null;
+        }
         if (this.$.state == 0) {
             this.$.timeout -= lapse;
             if(this.$.timeout <= 0) {
@@ -214,7 +215,7 @@ function(e, physics, controls, draw, vec, resources) {
             this.$.state = 1;
             this.$.target.pos = pos;
             var difV = vec.mad(this.$.target.pos, -1, this.pos);
-            physics.moveBody(this.pBody, vec.eq(difV, this.def.speed*2));
+            this.$.qVec = vec.eq(difV, this.def.speed*2);
         }
     }
 
@@ -285,34 +286,18 @@ function(e, physics, controls, draw, vec, resources) {
 
     // Abstract objects are glorified containers
     function abstractWeapon(weaponData) {
-        this.def = weaponData;
+        this.arg = weaponData;
         this.$ = {};
-        this.def.ripple = {
+        this.arg.ripple = {
             radius: weaponData.sound,
             timeout: 35,
             canvas: drawRipple(weaponData.sound),
         }
-        this.$.ammo = this.def.ammo;
+        this.$.ammo = this.arg.ammo;
         this.$.block = 0;
     }
 
-    abstractWeapon.prototype.fire = function(vecDat) {
-        if(this.$.block > 0) {
-            return;
-        }
-        if (this.$.ammo <= 0) {
-            //CLICK
-            return;
-        }
-        this.$.block = this.def.cooldown;
-        this.$.ammo-=1;
-        // DIRTY initializations!
-        this.def.ripple.x = vecDat.pos.x;
-        this.def.ripple.y = vecDat.pos.y;
-        new ripple(this.def.ripple);
-        this.def.bullet.vec = vecDat
-        new bulletObject(this.def.bullet);
-    }
+    abstractWeapon.prototype.fire = function(vecDat) { }
 
     abstractWeapon.prototype.update = function() {
         if (this.$.block > 0) {
@@ -334,9 +319,43 @@ function(e, physics, controls, draw, vec, resources) {
         physics.queryBox(position, pow, qCback);
     }
 
+    var silencePistol = new abstractWeapon({
+        name: 'Silenced Pistol',
+        cooldown: 20,
+        ammo: 42,
+        bParam: {
+            timeout: 500,
+            w: 3,
+            h: 3,
+            speed: 200,
+            damage: 40,
+        },
+        sound: 85,
+    });
+
+    silencePistol.fireAction = function() {
+        return controls.poll('mouse-up');
+    }
+
+    silencePistol.fire = function(vDat) {
+        if(this.$.block > 0) {
+            return;
+        }
+        if(this.$.ammo<=0) {
+            return;
+        }
+        this.arg.ripple.x = vDat.pos.x;
+        this.arg.ripple.y = vDat.pos.y;
+        new ripple(this.arg.ripple);
+        this.arg.bParam.vec = vDat
+        new bulletObject(this.arg.bParam);
+        this.$.block = this.arg.cooldown;
+        this.$.ammo -= 1;
+    }
+
     return {
         playerObject: playerObject,
-        abstractWeapon: abstractWeapon,
+        silencePistol: silencePistol,
         bulletObject: bulletObject,
         zombieObject: zombieObject,
         ref: ref,
