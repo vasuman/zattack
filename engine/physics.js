@@ -95,6 +95,9 @@ define(['import/box2d', 'engine/vector'], function (_discard, vec) {
         if(physData.filterGroup) {
             fixDef.filter.groupIndex = physData.filterGroup;
         }
+        if(physData.maskBits) {
+            fixDef.filter.maskBits = physData.maskBits;
+        }
         fixDef.isSensor = (physData.sensor) || false;
         var createdBody = world.CreateBody(bDef);
         createdBody.CreateFixture(fixDef);

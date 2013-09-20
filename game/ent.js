@@ -76,6 +76,7 @@ function(e, physics, controls, draw, vec, resources) {
     }
 
     playerObject.prototype.bulletTime = function() {
+        return true;
     }
 
     playerObject.prototype.update=function (lapse) {
@@ -179,6 +180,7 @@ function(e, physics, controls, draw, vec, resources) {
          this.$.target = {
             step: -1,
          };
+         this.loadReel(this.def.normalAnim, true);
     }
 
     zombieObject.prototype.__proto__ = mortalObject.prototype;
@@ -219,6 +221,7 @@ function(e, physics, controls, draw, vec, resources) {
     zombieObject.prototype.suck = function(src) {
         this.$.state = -1;
         this.$.source = src;
+        this.loadReel(this.def.suckAnim, true)
     }
 
 
@@ -250,15 +253,15 @@ function(e, physics, controls, draw, vec, resources) {
         rDat.loop = true;
         rDat.w = rDat.radius;
         rDat.h = rDat.radius;
-        rDat.reel = [{
+        e.animation.call(this, rDat);
+        this.$.count = 0;
+        this.loadReel([{
             image: {
                 name: rDat.canvas,
                 canvas: true
             },
             n: 1
-        }];
-        e.animation.call(this, rDat);
-        this.$.count = 0;
+        }]);
         soundSource(this.pos, rDat.radius)
     }
 
@@ -266,15 +269,19 @@ function(e, physics, controls, draw, vec, resources) {
 
     ripple.prototype.update = function(lapse) {
         this.$.count += lapse;
-        this.def.reel[0].image.alpha = 1-this.$.count/this.def.timeout;
+        this.reel[0].image.alpha = 1-this.$.count/this.def.timeout;
         if (this.$.count >= this.def.timeout-1) {
             this.$.dead = true;
         }
     }
 
     function sensorObject(sensDat) {
-        
+        sensDat.userData = 'sensor';
+        sensDat.maskBits = 0xffff;
+        e.physicalObject.call(this, bulletData);
     }
+
+    sensorObject.prototype.__proto__ = e.physicalObject.prototype;
 
     // Abstract objects are glorified containers
     function abstractWeapon(weaponData) {

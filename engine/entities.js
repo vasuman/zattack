@@ -45,24 +45,27 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
         this.$.anim = {};
         this.$.anim.frame = 0;
         this.$.anim.idx = 0;
-        this.drawImage = true;
     }
 
     animation.prototype.__proto__ = baseObject.prototype;
 
     animation.prototype.getDrawData = function() {
+        if(!this.reel) {
+            return baseObject.prototype.getDrawData.call(this);
+        }
         this.$.anim.frame+=1;
-        if (this.$.anim.frame > this.def.reel[this.$.anim.idx].n) {
-            if (!this.def.loop && this.$.anim.idx == this.def.reel.length-1) {
+        if (this.$.anim.frame > this.reel[this.$.anim.idx].n) {
+            if (!this.def.loop && this.$.anim.idx == this.reel.length-1) {
                 this._dead = true;
             }
-            this.$.anim.idx = (this.$.anim.idx + 1) % this.def.reel.length;
+            this.$.anim.idx = (this.$.anim.idx + 1) % this.reel.length;
             this.$.anim.frame = 0;
         }
-        var imgDat = this.def.reel[this.$.anim.idx].image;
+        var imgDat = this.reel[this.$.anim.idx].image;
         if (imgDat.canvas) {
             var canvas = resources.canvas[imgDat.name];
             return {
+                draw: true,
                 canvas: canvas,
                 x: this.pos.x - canvas.width / 2,
                 y: this.pos.y - canvas.height / 2,
@@ -73,6 +76,7 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
         }
         var img = resources.images[imgDat.name];
         return {
+            draw: true,
             image: img,
             x: this.pos.x - imgDat.w / 2,
             y: this.pos.y - imgDat.h / 2,
@@ -84,23 +88,26 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
         }
     }
 
-    animation.prototype.loadReel = function(reel) {
+    animation.prototype.loadReel = function(reel, rand) {
         this.$.anim.frame = 0;
         this.$.anim.idx = 0;
-        this.def.reel = reel;
+        this.reel = reel;
+        if(rand) {
+            this.$.anim.idx = ~~(Math.random()*this.reel.length);
+        }
     }
 
     
 
     /* A physicalObject is an object with an attached Box2D body */
     function physicalObject (physDefn) {
-            baseObject.call(this, physDefn);
+            animation.call(this, physDefn);
             //Create a Box2D box!!
             this.pBody = physics.makeBody(physDefn, this);
             this.skipUpdate = (physDefn.isStatic)?true:false;
     }
 
-    physicalObject.prototype.__proto__ = baseObject.prototype;
+    physicalObject.prototype.__proto__ = animation.prototype;
 
     physicalObject.prototype.update=function () {
         //Update positions from Box2D

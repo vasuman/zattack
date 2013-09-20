@@ -10,7 +10,6 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
     }
 
     var viewport = { x:0, y:0 },
-        ripples = [],
         frame = { 
             width: 0, 
             height: 0  
@@ -21,6 +20,7 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         },
         //Plural of canvas
         canvii = [],
+        f_can = null,
         viewportLimits = {
             minX: 0,
             maxX: 0,
@@ -54,6 +54,11 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
     function clearScreen() {
         handle.clearRect(0, 0, frame.width, frame.height);
     }
+
+    function drawCenterText(text, family, size) {
+        handle.font = size+'pt '+family;
+        handle.textAlign = '';
+    }
     
     function drawOSD(text, family, size) {
         handle.font = size+'pt '+family;
@@ -74,34 +79,26 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         for(var i=0; i<entities.length; i++) {
             var dDat = entities[i].getDrawData();
             if (isInFrame(dDat) && !entities[i].invisible) {
-                if (entities[i].drawImage) {
+                if (dDat.draw) {
+                    var xP = Math.floor(dDat.x - viewport.x),
+                        yP = Math.floor(dDat.y - viewport.y); 
                     handle.globalAlpha = (dDat.alpha || 1.0); 
                     if (dDat.canvas) {
-                        handle.drawImage(dDat.canvas, 
-                            Math.floor(dDat.x - viewport.x), 
-                            Math.floor(dDat.y - viewport.y))
+                        handle.drawImage(dDat.canvas, xP, yP); 
                     } else {
-                        handle.drawImage(
-                            dDat.image, 
-                            Math.floor(dDat.x - viewport.x), 
-                            Math.floor(dDat.y - viewport.y),
-                            dDat.width, dDat.height,
-                            dDat.sx, dDat.sy,
-                            dDat.width, dDat.height);
+                        gl = dDat;
+                        handle.drawImage(dDat.image, dDat.sx, dDat.sy, dDat.width, dDat.height, 
+                            xP, yP, dDat.width, dDat.height);
                     }
                     handle.globalAlpha = 1.0; 
                 } else {
-                    if(entities[i].pBody.GetUserData().type == 'player') {
-                        handle.fillStyle = 'red';
-                    } else {
-                        handle.fillStyle = 'black';
-                    }
-                    handle.fillRect(
-                        Math.floor(dDat.x - viewport.x), 
-                        Math.floor(dDat.y - viewport.y), 
-                        dDat.width, dDat.height);
+                    handle.fillRect(Math.floor(dDat.x - viewport.x), 
+                        Math.floor(dDat.y - viewport.y), dDat.width, dDat.height);
                 }
             }
+        }
+        if(f_can) {
+            handle.drawImage(f_can, -~~viewport.x, -~~viewport.y)
         }
     }
 
@@ -112,36 +109,20 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
         }
     }
 
-    function drawRipple(ripple) {
-        ripple.w = ripple.stage;
-        ripple.h = ripple.stage;
-        if (!isInFrame(ripple)) {
-            return;
-        }
-        // handle.fi
-    }
-
-    function addRipple(pos, inc, end) {
-        ripples.append({
-            pos: pos,
-            stage: 1,
-            inc: inc,
-            end: end,
-        })
-    }
-    
     function _preDraw(level_url, callback) {
         var level = resource.json_data[level_url],
-            gridW = level.tilewidth,
-            gridH = level.tileheight,
-            numX = Math.ceil((level.width*gridW)/subFrame.width), 
-            numY = Math.ceil((level.height*gridH)/subFrame.height);
+        gridW = level.tilewidth,
+        gridH = level.tileheight,
+        numX = Math.ceil((level.width*gridW)/subFrame.width), 
+        numY = Math.ceil((level.height*gridH)/subFrame.height);
         canvii = [];
+        f_can = document.createElement('canvas');
+        f_can.height = level.height*gridH;
+        f_can.width = level.width*gridW;
         for(var i = 0; i < numX*numY; i+=1) {
             canvii[i] = document.createElement('canvas');
             canvii[i].width =  subFrame.width + gridW;
             canvii[i].height = subFrame.height + gridH;
-            //Need to alias values for inFrame
             canvii[i].x = (i % numX)*subFrame.width;
             canvii[i].y = Math.floor(i/numX)*subFrame.height;
         }
@@ -150,23 +131,30 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
             if (layer.type = 'tilelayer' && layer.properties && layer.properties.predraw){
                 for(var m = 0; m < layer.data.length; m+=1) {
                     var j = m%layer.width,
-                        i = Math.floor(m/layer.width);
+                    i = Math.floor(m/layer.width);
                     if(layer.data[m] == 0) {
                         continue;
                     }
                     var x = j*gridW,
-                        y = i*gridH,
-                        tile = getTile(level, layer.data[m]),
-                    // Canvas ID
-                    c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX;
-                    canvii[c_id].getContext('2d').drawImage(
-                        resource.images[tile.image],
-                        tile.sx, tile.sy,
-                        tile.sw, tile.sh,
-                        x - canvii[c_id].x,
-                        y - canvii[c_id].y,
-                        gridW, gridH
-                    );
+                    y = i*gridH,
+                    tile = getTile(level, layer.data[m]);
+                    if(!layer.properties.foreground){
+                        // Canvas ID
+                        var c_id = Math.floor(x/subFrame.width) + Math.floor(y/subFrame.height)*numX;
+                        canvii[c_id].getContext('2d').drawImage(
+                            resource.images[tile.image],
+                            tile.sx, tile.sy,
+                            tile.sw, tile.sh,
+                            x - canvii[c_id].x,
+                            y - canvii[c_id].y,
+                            gridW, gridH
+                        );
+                    } else {
+                        f_can.getContext('2d').drawImage(
+                            resource.images[tile.image],
+                            tile.sx, tile.sy, tile.sw, tile.sh,
+                            x, y, gridW, gridH)
+                    }
                 }
             }
         }

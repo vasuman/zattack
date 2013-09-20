@@ -1,5 +1,5 @@
-require(['engine/physics', 'engine/level', 'engine/controls', 'engine/draw', 'engine/manager', 'game/ent', 'game/defn'], 
-function(physics, level, controls, draw, manager, c, d) {
+require(['engine/resources','engine/physics', 'engine/level', 'engine/controls', 'engine/draw', 'engine/manager', 'game/ent', 'game/defn'], 
+function(res, physics, level, controls, draw, manager, c, d) {
     var _done = false,
         maxSpawn = 10,
         infi = true,
@@ -12,11 +12,6 @@ function(physics, level, controls, draw, manager, c, d) {
         zombies = [];
 
     var canvas = document.getElementById('game-canvas');
-    function initManager() {
-        draw.init(canvas, 800, 400);
-        draw.setCanvasSegmentSize(600, 300);
-        physics.init(0, 25, 60);
-    }
 
     function setupControls(element){
         controls.listenForMouseEvents(canvas);
@@ -57,8 +52,11 @@ function(physics, level, controls, draw, manager, c, d) {
         }
         else {
             draw.clearScreen();
-            draw.renderTextScreen('Game Over..', 330, 160)
         }
+    }
+
+    function reset() {
+    
     }
 
     function breakItDown() {
@@ -79,10 +77,12 @@ function(physics, level, controls, draw, manager, c, d) {
             new c.zombieObject({
                 x: spawnPoint.x,
                 y: spawnPoint.y,
-                w: 10,
-                h: 10,
+                w: 32,
+                h: 32,
                 speed: 40,
                 damage: 0,
+                normalAnim: d.okB,
+                suckAnim: d.madB,
                 deathTrigger: spawnXomB,
             })
             spawnXomB.numSpawn += 1;
@@ -92,7 +92,7 @@ function(physics, level, controls, draw, manager, c, d) {
         }
     }
 
-    function loadPlayer() {
+    function loadEntities() {
         var spawnPoint = level.getSpawn('Player');
         new c.playerObject({
             x: spawnPoint.x,
@@ -111,9 +111,9 @@ function(physics, level, controls, draw, manager, c, d) {
         }
     }
 
-    function startLevel() {
+    function startLevel(level_json, cback) {
         _done = false;
-        level.loadLevel('data/level_n.json', loadPlayer);
+        level.loadLevel(level_json, cback);
         update();
     }
 
@@ -144,12 +144,14 @@ function(physics, level, controls, draw, manager, c, d) {
         physics.contactListener('zombie', xomBContact)
     }
 
-    function setupGame() {
+    function initManager() {
+        draw.init(canvas, 800, 400);
+        draw.setCanvasSegmentSize(600, 300);
+        physics.init(0, 25, 60);
+        setupControls(window);
         contactCallbacks();
-        startLevel();
+        startLevel('data/level_n.json', loadEntities);
     }
 
-    setupControls(window);
     initManager();
-    setupGame();
 })
