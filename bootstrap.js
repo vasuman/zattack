@@ -1,3 +1,5 @@
 // Expected something else?
 // Haha! TROLLED
-require(['game/main'])
+define(['game/main'], function(){
+    return {};
+})

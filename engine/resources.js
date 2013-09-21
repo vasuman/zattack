@@ -13,6 +13,9 @@ define([], function () {
 
     function loadImages(image_names, callback) {
         var num_img = image_names.length;
+        if(num_img == 0) {
+            callback();
+        }
         function cCb() {
             if (--num_img <= 0) {
                 callback();
@@ -32,6 +35,9 @@ define([], function () {
 
     function loadJSON(json_list, callback) {
         var num_json = json_list.length;
+        if(num_json == 0) {
+            callback();
+        }
         function cCb() {
             json_data[this.source] = JSON.parse(this.response);
             if(--num_json <= 0) {

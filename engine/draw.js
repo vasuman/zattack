@@ -76,28 +76,53 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
                 (imgDat[2] + imgDat[4]> viewport.y));
     }
 
+    function draw(ent) {
+        var dDat = ent.getDrawData();
+        if (isInFrame(dDat) && !ent.invisible) {
+            if (dDat.draw) {
+                var xP = Math.floor(dDat.x - viewport.x),
+                    xR, yR,
+                    yP = Math.floor(dDat.y - viewport.y); 
+                handle.globalAlpha = (dDat.alpha || 1.0); 
+                if(dDat.rotate) {
+                    xR = xP+dDat.width/2;
+                    yR = yP+dDat.height/2;
+                    handle.translate(xR, yR);
+                    handle.rotate(dDat.rotate);
+                    xP = -dDat.width/2;
+                    yP = -dDat.height/2;
+                }
+                if (dDat.canvas) {
+                    handle.drawImage(dDat.canvas, xP, yP); 
+                } else {
+                    gl = dDat;
+                    handle.drawImage(dDat.image, dDat.sx, dDat.sy, dDat.width, dDat.height, 
+                        xP, yP, dDat.width, dDat.height);
+                }
+                if(dDat.rotate) {
+                    handle.rotate(-dDat.rotate);
+                    handle.translate(-xR, -yR);
+                }
+                handle.globalAlpha = 1.0; 
+            } else {
+                handle.fillRect(Math.floor(dDat.x - viewport.x), 
+                    Math.floor(dDat.y - viewport.y), dDat.width, dDat.height);
+            }
+        }
+    }
     function drawAll(entities) {
         clearScreen();
         renderG(false);
-        for(var i=0; i<entities.length; i++) {
-            var dDat = entities[i].getDrawData();
-            if (isInFrame(dDat) && !entities[i].invisible) {
-                if (dDat.draw) {
-                    var xP = Math.floor(dDat.x - viewport.x),
-                        yP = Math.floor(dDat.y - viewport.y); 
-                    handle.globalAlpha = (dDat.alpha || 1.0); 
-                    if (dDat.canvas) {
-                        handle.drawImage(dDat.canvas, xP, yP); 
-                    } else {
-                        gl = dDat;
-                        handle.drawImage(dDat.image, dDat.sx, dDat.sy, dDat.width, dDat.height, 
-                            xP, yP, dDat.width, dDat.height);
-                    }
-                    handle.globalAlpha = 1.0; 
-                } else {
-                    handle.fillRect(Math.floor(dDat.x - viewport.x), 
-                        Math.floor(dDat.y - viewport.y), dDat.width, dDat.height);
-                }
+        var drawn = [];
+        for(var i = 0; i<entities.length; i+=1) {
+            if(entities[i].def.zLow) {
+                drawn[i] = true;
+                draw(entities[i]);
+            }
+        }
+        for(var i = 0; i<entities.length; i++) {
+            if(!drawn[i]) {
+                draw(entities[i]);
             }
         }
         renderG(true);

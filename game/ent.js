@@ -25,6 +25,23 @@ function(e, physics, controls, draw, vec, resources) {
             player: null,
         };
 
+    function bulletImage(radius) {
+        var c = document.createElement('canvas'),
+        hd = c.getContext('2d'),
+        gr = hd.createRadialGradient(radius, radius, radius/2, 
+                radius, radius, radius*2);
+        c.width = radius*2;
+        c.height = radius*2;
+        gr.addColorStop(0, 'red');
+        gr.addColorStop(1, 'black');
+        hd.arc(radius, radius, radius, 0, 2 * Math.PI, false);
+        hd.fillStyle = gr;
+        hd.fill();
+        var name = 'bullet'+radius;
+        resources.registerCanvas(name, c);
+        return name;
+    }
+
     function useMouse(s) {
         firingVector = (s) ? mouseFire : keyFire;
     }
@@ -36,7 +53,9 @@ function(e, physics, controls, draw, vec, resources) {
 
     mortalObject.prototype.__proto__ = e.physicalObject.prototype;
 
-    mortalObject.prototype.update = function() {};
+    mortalObject.prototype.heal = function(amt) {
+        this.$.health = Math.min((this.def.health || 100), this.$.health+amt);
+    };
 
     mortalObject.prototype.damage = function(amt) {
         this.$.health -= amt;
@@ -98,7 +117,7 @@ function(e, physics, controls, draw, vec, resources) {
                         this.$.interval = 0;
                     }
                     this.$.stamina -= lapse;
-                    scale*=3;
+                    scale*=this.def.run;
                     ran = true;
                 }
             }
@@ -148,6 +167,7 @@ function(e, physics, controls, draw, vec, resources) {
         bulletData.y = bulletData.vec.pos.y;
         bulletData.bullet = true;
         e.physicalObject.call(this, bulletData);
+        this.loadReel(bulletData.img);
         this.$.timeout = this.def.timeout;
         physics.moveBody(this.pBody, {
             x:  bulletData.vec.dir.x*
@@ -222,7 +242,7 @@ function(e, physics, controls, draw, vec, resources) {
     zombieObject.prototype.suck = function(src) {
         this.$.state = -1;
         this.$.source = src;
-        this.loadReel(this.def.suckAnim, true)
+        // this.loadReel(this.def.suckAnim, true)
     }
 
 
@@ -276,13 +296,52 @@ function(e, physics, controls, draw, vec, resources) {
         }
     }
 
-    function sensorObject(sensDat) {
-        sensDat.userData = 'sensor';
-        sensDat.maskBits = 0xffff;
-        e.physicalObject.call(this, bulletData);
+    function healthPack(sensDat) {
+        sensDat.userData = 'pickup';
+        sensDat.sensor = true;
+        sensDat.zLow = true;
+        e.physicalObject.call(this, sensDat);
+        this.loadReel([{
+            image: {
+                name: 'otile.png',
+                x: 0,
+                y: 0,
+                w: 24,
+                h: 24
+            },
+            n: 1,
+        }])
     }
 
-    sensorObject.prototype.__proto__ = e.physicalObject.prototype;
+    healthPack.prototype.__proto__ = e.physicalObject.prototype;
+
+    healthPack.prototype.apply = function(player) {
+        player.heal(this.def.restore);
+    }
+
+    function ammoCrate(amDat) {
+        amDat.userData = 'pickup';
+        amDat.sensor = true;
+        amDat.zLow = true;
+        e.physicalObject.call(this, amDat);
+        this.loadReel([{
+            image: {
+                name: 'otile.png',
+                x: 24,
+                y: 0,
+                w: 24,
+                h: 24
+            },
+            n: 1,
+        }])
+    }
+
+    ammoCrate.prototype.__proto__ = e.physicalObject.prototype;
+
+    ammoCrate.prototype.apply = function(player) {
+        var wp = player.def.weapon;
+        wp.$.ammo += wp.arg.amic;
+    }
 
     // Abstract objects are glorified containers
     function abstractWeapon(weaponData) {
@@ -297,47 +356,7 @@ function(e, physics, controls, draw, vec, resources) {
         this.$.block = 0;
     }
 
-    abstractWeapon.prototype.fire = function(vecDat) { }
-
-    abstractWeapon.prototype.update = function() {
-        if (this.$.block > 0) {
-            this.$.block -= 1;
-        }
-    }
-
-    abstractWeapon.prototype.loadAmmo = function(ammo) {
-        this.ammo+=ammo;
-    }
-
-    function soundSource(position, pow) {
-        function qCback(item) {
-            if (item.type == 'zombie') {
-                item.ent.alert(position);
-            }
-            return true;
-        }
-        physics.queryBox(position, pow, qCback);
-    }
-
-    var silencePistol = new abstractWeapon({
-        name: 'Silenced Pistol',
-        cooldown: 20,
-        ammo: 42,
-        bParam: {
-            timeout: 500,
-            w: 3,
-            h: 3,
-            speed: 200,
-            damage: 40,
-        },
-        sound: 85,
-    });
-
-    silencePistol.fireAction = function() {
-        return controls.poll('mouse-up');
-    }
-
-    silencePistol.fire = function(vDat) {
+    abstractWeapon.prototype.fire = function(vDat) {
         if(this.$.block > 0) {
             return;
         }
@@ -353,11 +372,113 @@ function(e, physics, controls, draw, vec, resources) {
         this.$.ammo -= 1;
     }
 
+    abstractWeapon.prototype.update = function() {
+        if (this.$.block > 0) {
+            this.$.block -= 1;
+        }
+    }
+
+    function soundSource(position, pow) {
+        function qCback(item) {
+            if (item.type == 'zombie') {
+                item.ent.alert(position);
+            }
+            return true;
+        }
+        physics.queryBox(position, pow, qCback);
+    }
+
+    var silencePistol = new abstractWeapon({
+        name: 'Silenced Pistol',
+        cooldown: 20,
+        amic: 18,
+        ammo: 42,
+        bParam: {
+            img: [{
+                image: {
+                    name: bulletImage(2),
+                    canvas: true,
+                },
+                n: 1
+            }],
+            timeout: 500,
+            w: 3,
+            h: 3,
+            speed: 200,
+            damage: 40,
+        },
+        sound: 50,
+    });
+
+    silencePistol.fireAction = function() {
+        return controls.poll('mouse-up');
+    }
+
+    var sniperRifle = new abstractWeapon({
+        name: 'Rifle',
+        cooldown: 10,
+        amic: 10,
+        ammo: 20,
+        bParam: {
+            img: [{
+                image: {
+                    name: bulletImage(3),
+                    canvas: true,
+                },
+                n: 1
+            }],
+            timeout: 500,
+            w: 6,
+            h: 6,
+            speed: 290,
+            damage: 120,
+        },
+        sound: 150,
+    });
+
+    sniperRifle.fireAction = function() {
+        return controls.poll('mouse-up');
+    }
+
+    sniperRifle.bTAction = function() {
+        return controls.mousePressed(0);
+    }
+
+    var machineGun = new abstractWeapon({
+        name: 'Machine Gun',
+        cooldown: 10,
+        amic: 100,
+        ammo: 200,
+        bParam: {
+            img: [{
+                image: {
+                    name: bulletImage(3),
+                    canvas: true,
+                },
+                n: 1
+            }],
+            timeout: 500,
+            w: 4,
+            h: 4,
+            speed: 240,
+            damage: 20,
+        },
+        sound: 150,
+    });
+
+    machineGun.fireAction = function() {
+        return controls.mousePressed(0);
+    }
+
     return {
         playerObject: playerObject,
+        machineGun: machineGun,
         silencePistol: silencePistol,
+        sniperRifle: sniperRifle,
         bulletObject: bulletObject,
         zombieObject: zombieObject,
+        ammoCrate: ammoCrate,
+        healthPack: healthPack,
         ref: ref,
     }
 });
