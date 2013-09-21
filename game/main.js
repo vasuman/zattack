@@ -44,7 +44,7 @@ function(res, physics, level, controls, draw, manager, c, d) {
                 weapon: c.machineGun,
                 stamina: 550,
                 melee: 70,
-                run: 2.5
+                run: 2
             }
         },
         'stealth': {
@@ -52,7 +52,7 @@ function(res, physics, level, controls, draw, manager, c, d) {
                 'Medium health', 'Equipped with silenced pistol',
                 'Does lesser damage', 'Better melee', 'More stamina'],
             pArg: {
-                speed: 7,
+                speed: 6,
                 sound: 50,
                 weapon: c.silencePistol,
                 stamina: 600,
@@ -120,7 +120,7 @@ function(res, physics, level, controls, draw, manager, c, d) {
         var hd = core.handle;
         hd.textAlign = 'center';
         hd.font = '22pt Sans';
-        hd.fillText('Score: '+(spawnXomB.numKilled || 0), core.frame.width/2,
+        hd.fillText('"r" - Restart. Score: '+(spawnXomB.numKilled || 0), core.frame.width/2,
                     core.frame.height/2)
     }
 
@@ -144,7 +144,7 @@ function(res, physics, level, controls, draw, manager, c, d) {
             }
             if(controls.ev('stealth-ch')) {
                 _state = 2;
-                loadEntities(cClass.sniper.pArg);
+                loadEntities(cClass.stealth.pArg);
             }
             if(controls.ev('sniper-ch')) {
                 _state = 2;

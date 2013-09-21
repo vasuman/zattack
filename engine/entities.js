@@ -29,6 +29,7 @@ define(['engine/physics', 'engine/manager', 'engine/resources'], function(physic
             x: this.pos.x - this.dim.w/2,
             y: this.pos.y - this.dim.h/2,
             width: this.dim.w,
+            color: (this.$.color || 'black'),
             height: this.dim.h,
             image: null,
         }

@@ -96,6 +96,7 @@ function(e, physics, controls, draw, vec, resources) {
     }
 
     playerObject.prototype.update=function (lapse) {
+        this.$.color = 'blue';
         this.$.interval += lapse;
         var ran = false;
         //VIEWPORT CENTER
@@ -150,6 +151,7 @@ function(e, physics, controls, draw, vec, resources) {
         } 
         //LEECH
         for (var i = this.$.leech.length - 1; i >= 0; i-=1) {
+            this.$.color = 'red';
             var leech = this.$.leech[i];
             if(leech.$.dead) {
                 this.$.leech.splice(i,1);

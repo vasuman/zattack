@@ -105,6 +105,7 @@ define(['engine/resources', 'engine/vector'], function(resource, vec) {
                 }
                 handle.globalAlpha = 1.0; 
             } else {
+                handle.fillStyle = dDat.color;
                 handle.fillRect(Math.floor(dDat.x - viewport.x), 
                     Math.floor(dDat.y - viewport.y), dDat.width, dDat.height);
             }
