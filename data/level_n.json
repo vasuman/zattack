@@ -824,7 +824,7 @@
  "tilesets":[
         {
          "firstgid":1,
-         "image":"..\/pjpa2759.png",
+         "image":"..\/ttile.png",
          "imageheight":188,
          "imagewidth":188,
          "margin":1,
@@ -836,22 +836,8 @@
          "spacing":1,
          "tileheight":16,
          "tilewidth":16
-        }, 
-        {
-         "firstgid":122,
-         "image":"..\/pjpa2759.png",
-         "imageheight":188,
-         "imagewidth":188,
-         "margin":1,
-         "name":"Terrain",
-         "properties":
-            {
-
-            },
-         "spacing":1,
-         "tileheight":16,
-         "tilewidth":16
-        }],
+        } 
+        ],
  "tilewidth":16,
  "version":1,
  "width":150
