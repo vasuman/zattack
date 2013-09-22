@@ -61,6 +61,16 @@ function(res, physics, level, controls, draw, manager, c, d) {
             }
         },
     }
+    
+    window.requestAnimFrame = (function(){
+    return  window.requestAnimationFrame       ||
+        window.webkitRequestAnimationFrame ||
+        window.mozRequestAnimationFrame    ||
+        function( callback ){
+            window.setTimeout(callback, 1000 / 60);
+        };
+    })();
+    
     function setupControls(element){
         controls.listenForMouseEvents(canvas);
         controls.listenForKeyboardEvents(element);
@@ -164,7 +174,7 @@ function(res, physics, level, controls, draw, manager, c, d) {
             draw.clearScreen();
             scoreScreen(draw.core);
         }
-        requestAnimationFrame(update);
+        window.requestAnimFrame(update);
     }
 
     function breakItDown() {
