@@ -380,6 +380,11 @@ function(e, physics, controls, draw, vec, resources) {
         }
     }
 
+    abstractWeapon.prototype.reset = function() {
+        this.$.block = 0;
+        this.$.ammo = this.arg.ammo;
+    }
+
     function soundSource(position, pow) {
         function qCback(item) {
             if (item.type == 'zombie') {

@@ -230,6 +230,7 @@ function(res, physics, level, controls, draw, manager, c, d) {
 
     function loadEntities(pArg) {
         var spawnPoint = level.getSpawn('player');
+        pArg.weapon.reset();
         pArg.x = spawnPoint.x;
         pArg.y = spawnPoint.y;
         pArg.w = 11;
