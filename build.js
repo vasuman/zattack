@@ -1,6 +1,6 @@
 ({
     appDir: ".",
-    baseUrl: "/",
+    baseUrl: ".",
     dir: "./build",
     name: "bootstrap"
 })
